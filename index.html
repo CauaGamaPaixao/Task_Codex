@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kanban Task - Estágio ADS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Kanban Task</h1>
+      <p>Projeto da 3ª semana de estágio (ADS)</p>
+    </div>
+    <div class="actions">
+      <button id="densityToggle" type="button">Modificar GUI: Modo Compacto</button>
+      <button id="addTaskBtn" type="button">+ Nova tarefa</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="toolbar" aria-label="Filtros do board">
+        <label>
+          Buscar
+          <input id="searchInput" type="search" placeholder="Título, descrição, responsável..." />
+        </label>
+        <label>
+          Prioridade
+          <select id="priorityFilter">
+            <option value="">Todas</option>
+            <option value="Baixa">Baixa</option>
+            <option value="Média">Média</option>
+            <option value="Alta">Alta</option>
+          </select>
+        </label>
+      </div>
+      <section class="board" id="board" aria-live="polite"></section>
+    </section>
+
+    <aside class="panel">
+      <h2>Integrações MCP</h2>
+      <p>Simulação de 3 MCPs diferentes para sincronização:</p>
+      <ul>
+        <li><strong>MCP GitHub</strong>: converter tarefa em issue</li>
+        <li><strong>MCP Slack</strong>: notificar mudanças de coluna</li>
+        <li><strong>MCP Google Calendar</strong>: criar lembrete de prazo</li>
+      </ul>
+      <div class="mcp-actions">
+        <button type="button" data-mcp="github">Sincronizar GitHub</button>
+        <button type="button" data-mcp="slack">Sincronizar Slack</button>
+        <button type="button" data-mcp="calendar">Sincronizar Calendar</button>
+      </div>
+      <pre id="log" aria-label="Log de eventos"></pre>
+    </aside>
+  </main>
+
+  <dialog id="taskDialog">
+    <form id="taskForm">
+      <h3 id="dialogTitle">Nova Tarefa</h3>
+      <input type="hidden" name="id" />
+      <label>Título <input name="title" required /></label>
+      <label>Descrição <textarea name="description"></textarea></label>
+      <label>Responsável <input name="owner" placeholder="Ex.: João" /></label>
+      <label>Prazo <input name="dueDate" type="date" /></label>
+      <label>Prioridade
+        <select name="priority">
+          <option>Baixa</option>
+          <option selected>Média</option>
+          <option>Alta</option>
+        </select>
+      </label>
+      <menu>
+        <button type="button" id="cancelDialog">Cancelar</button>
+        <button type="submit">Salvar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
