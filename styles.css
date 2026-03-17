@@ -150,14 +150,15 @@ main {
 .mcp-actions, .bg-controls { display: grid; gap: .5rem; }
 .bg-controls label { display: grid; gap: .25rem; font-size: .9rem; }
 
-#log {
-  background: #0f172a;
-  color: #cde3ff;
+
+.status-message {
+  margin-top: .9rem;
+  padding: .7rem .8rem;
   border-radius: 8px;
-  min-height: 180px;
-  padding: .8rem;
-  white-space: pre-wrap;
-  margin-top: .8rem;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  min-height: 42px;
+  font-size: .9rem;
 }
 
 body.compact { --card-padding: .55rem; }

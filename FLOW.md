@@ -6,7 +6,7 @@
 3. Preenche título, descrição, responsável, prazo e prioridade.
 4. Salva e a tarefa entra em **A Fazer** com animação de entrada.
 5. Arrasta o card entre colunas e recebe animação visual de movimentação.
-6. O sistema registra cada ação no log e persiste no navegador.
+6. O sistema atualiza mensagens de status em tela e persiste dados essenciais no navegador.
 
 ## 2) Fluxo de GUI e personalização
 1. Usuário pode alternar **Modo Compacto** para reduzir densidade dos cards.

@@ -1,5 +1,4 @@
 const STORAGE_KEY = 'kanban-tasks-v3';
-const LOG_KEY = 'kanban-log-v3';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 
 const columns = [
@@ -26,7 +25,7 @@ const dialog = document.getElementById('taskDialog');
 const addTaskBtn = document.getElementById('addTaskBtn');
 const taskForm = document.getElementById('taskForm');
 const cancelDialog = document.getElementById('cancelDialog');
-const log = document.getElementById('log');
+const statusMessage = document.getElementById('statusMessage');
 const dialogTitle = document.getElementById('dialogTitle');
 const searchInput = document.getElementById('searchInput');
 const priorityFilter = document.getElementById('priorityFilter');
@@ -47,18 +46,8 @@ function persistTasks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
-function loadLog() {
-  log.textContent = localStorage.getItem(LOG_KEY) || '';
-}
-
-function persistLog() {
-  localStorage.setItem(LOG_KEY, log.textContent);
-}
-
-function appendLog(message) {
-  const date = new Date().toLocaleTimeString('pt-BR');
-  log.textContent += `[${date}] ${message}\n`;
-  persistLog();
+function setStatus(message) {
+  statusMessage.textContent = message;
 }
 
 function escapeHtml(text) {
@@ -147,7 +136,7 @@ function render() {
       if (target && target.status !== column.id) {
         target.status = column.id;
         movedTaskId = target.id;
-        appendLog(`Movida: "${target.title}" para ${column.name}.`);
+        setStatus(`Movida: "${target.title}" para ${column.name}.`);
         persistTasks();
         render();
       }
@@ -189,7 +178,7 @@ function deleteTask(taskId) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return;
   tasks = tasks.filter((t) => t.id !== taskId);
-  appendLog(`Excluída: "${task.title}".`);
+  setStatus(`Excluída: "${task.title}".`);
   persistTasks();
   render();
 }
@@ -214,13 +203,13 @@ function syncGoogleCalendarV1() {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
   if (!candidate) {
-    appendLog('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada para criar evento.');
+    setStatus('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada para criar evento.');
     return;
   }
 
   const url = buildGoogleCalendarUrl(candidate);
   window.open(url, '_blank', 'noopener,noreferrer');
-  appendLog(`[MCP CALENDAR] Evento preparado para "${candidate.title}" (${candidate.dueDate}).`);
+  setStatus(`[MCP CALENDAR] Evento preparado para "${candidate.title}" (${candidate.dueDate}).`);
 }
 
 function saveBoardBackground(payload) {
@@ -281,7 +270,7 @@ taskForm.addEventListener('submit', (event) => {
       task.owner = payload.owner;
       task.dueDate = payload.dueDate;
       task.priority = payload.priority;
-      appendLog(`Editada: "${task.title}".`);
+      setStatus(`Editada: "${task.title}".`);
     }
   } else {
     const newTask = {
@@ -291,7 +280,7 @@ taskForm.addEventListener('submit', (event) => {
     };
     tasks.push(newTask);
     createdTaskId = newTask.id;
-    appendLog(`Nova tarefa criada: "${newTask.title}".`);
+    setStatus(`Nova tarefa criada: "${newTask.title}".`);
   }
 
   persistTasks();
@@ -316,13 +305,13 @@ calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
       github: 'Issues sincronizadas com o repositório (simulação).',
       slack: 'Mensagem enviada no canal #kanban-updates (simulação).'
     };
-    appendLog(`[MCP ${mcp.toUpperCase()}] ${descriptions[mcp]}`);
+    setStatus(`[MCP ${mcp.toUpperCase()}] ${descriptions[mcp]}`);
   });
 });
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
-  appendLog('GUI alterada: modo compacto alternado.');
+  setStatus('GUI alterada: modo compacto alternado.');
 });
 
 searchInput.addEventListener('input', render);
@@ -333,7 +322,7 @@ boardColorPicker.addEventListener('input', (event) => {
   const payload = { type: 'color', value: color };
   applyBoardBackground(payload);
   saveBoardBackground(payload);
-  appendLog(`GUI alterada: fundo do quadro atualizado para ${color}.`);
+  setStatus(`GUI alterada: fundo do quadro atualizado para ${color}.`);
 });
 
 boardImagePicker.addEventListener('change', (event) => {
@@ -345,7 +334,7 @@ boardImagePicker.addEventListener('change', (event) => {
     const payload = { type: 'image', value: reader.result };
     applyBoardBackground(payload);
     saveBoardBackground(payload);
-    appendLog(`GUI alterada: fundo do quadro por imagem "${file.name}".`);
+    setStatus(`GUI alterada: fundo do quadro por imagem "${file.name}".`);
   };
   reader.readAsDataURL(file);
 });
@@ -354,9 +343,8 @@ clearBackgroundBtn.addEventListener('click', () => {
   const payload = { type: 'default' };
   applyBoardBackground(payload);
   saveBoardBackground(payload);
-  appendLog('GUI alterada: fundo do quadro restaurado para padrão.');
+  setStatus('GUI alterada: fundo do quadro restaurado para padrão.');
 });
 
-loadLog();
 loadBoardBackground();
 render();
