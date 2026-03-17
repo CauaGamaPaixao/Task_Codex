@@ -1,5 +1,6 @@
-const STORAGE_KEY = 'kanban-tasks-v2';
-const LOG_KEY = 'kanban-log-v2';
+const STORAGE_KEY = 'kanban-tasks-v3';
+const LOG_KEY = 'kanban-log-v3';
+const BOARD_BG_KEY = 'kanban-board-bg-v1';
 
 const columns = [
   { id: 'todo', name: 'A Fazer' },
@@ -15,8 +16,12 @@ const defaults = [
 ];
 
 let tasks = loadTasks();
+let createdTaskId = null;
+let movedTaskId = null;
+let draggingTaskId = null;
 
 const board = document.getElementById('board');
+const boardArea = document.getElementById('boardArea');
 const dialog = document.getElementById('taskDialog');
 const addTaskBtn = document.getElementById('addTaskBtn');
 const taskForm = document.getElementById('taskForm');
@@ -25,6 +30,10 @@ const log = document.getElementById('log');
 const dialogTitle = document.getElementById('dialogTitle');
 const searchInput = document.getElementById('searchInput');
 const priorityFilter = document.getElementById('priorityFilter');
+const calendarSyncBtn = document.getElementById('calendarSyncBtn');
+const boardColorPicker = document.getElementById('boardColorPicker');
+const boardImagePicker = document.getElementById('boardImagePicker');
+const clearBackgroundBtn = document.getElementById('clearBackground');
 
 function loadTasks() {
   try {
@@ -44,6 +53,21 @@ function loadLog() {
 
 function persistLog() {
   localStorage.setItem(LOG_KEY, log.textContent);
+}
+
+function appendLog(message) {
+  const date = new Date().toLocaleTimeString('pt-BR');
+  log.textContent += `[${date}] ${message}\n`;
+  persistLog();
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function filteredTasks() {
@@ -73,6 +97,10 @@ function render() {
       card.className = 'card';
       card.draggable = true;
       card.dataset.id = task.id;
+
+      if (task.id === createdTaskId) card.classList.add('is-new');
+      if (task.id === movedTaskId) card.classList.add('was-moved');
+
       const due = task.dueDate ? ` | Prazo: ${task.dueDate}` : '';
       const owner = task.owner ? ` | Resp.: ${task.owner}` : '';
 
@@ -87,19 +115,38 @@ function render() {
       `;
 
       card.addEventListener('dragstart', (event) => {
+        draggingTaskId = task.id;
+        card.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/task-id', task.id);
+      });
+
+      card.addEventListener('dragend', () => {
+        draggingTaskId = null;
+        card.classList.remove('dragging');
       });
 
       colEl.appendChild(card);
     });
 
-    colEl.addEventListener('dragover', (event) => event.preventDefault());
+    colEl.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      colEl.classList.add('drag-over');
+    });
+
+    colEl.addEventListener('dragleave', () => {
+      colEl.classList.remove('drag-over');
+    });
+
     colEl.addEventListener('drop', (event) => {
       event.preventDefault();
+      colEl.classList.remove('drag-over');
       const taskId = event.dataTransfer.getData('text/task-id');
       const target = tasks.find((item) => item.id === taskId);
       if (target && target.status !== column.id) {
         target.status = column.id;
+        movedTaskId = target.id;
         appendLog(`Movida: "${target.title}" para ${column.name}.`);
         persistTasks();
         render();
@@ -108,21 +155,14 @@ function render() {
 
     board.appendChild(colEl);
   });
-}
 
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function appendLog(message) {
-  const date = new Date().toLocaleTimeString('pt-BR');
-  log.textContent += `[${date}] ${message}\n`;
-  persistLog();
+  if (createdTaskId || movedTaskId) {
+    window.setTimeout(() => {
+      createdTaskId = null;
+      movedTaskId = null;
+      render();
+    }, 550);
+  }
 }
 
 function openCreateDialog() {
@@ -152,6 +192,67 @@ function deleteTask(taskId) {
   appendLog(`Excluída: "${task.title}".`);
   persistTasks();
   render();
+}
+
+function toCalendarDateRange(dateText) {
+  const base = new Date(`${dateText}T09:00:00`);
+  const end = new Date(base.getTime() + 60 * 60 * 1000);
+  const fmt = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  return `${fmt(base)}/${fmt(end)}`;
+}
+
+function buildGoogleCalendarUrl(task) {
+  const title = encodeURIComponent(`Kanban: ${task.title}`);
+  const details = encodeURIComponent(task.description || 'Tarefa criada no Kanban Task App');
+  const dates = task.dueDate ? toCalendarDateRange(task.dueDate) : toCalendarDateRange(new Date().toISOString().slice(0, 10));
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
+}
+
+function syncGoogleCalendarV1() {
+  const candidate = tasks
+    .filter((task) => task.status !== 'done' && task.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  if (!candidate) {
+    appendLog('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada para criar evento.');
+    return;
+  }
+
+  const url = buildGoogleCalendarUrl(candidate);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  appendLog(`[MCP CALENDAR] Evento preparado para "${candidate.title}" (${candidate.dueDate}).`);
+}
+
+function saveBoardBackground(payload) {
+  localStorage.setItem(BOARD_BG_KEY, JSON.stringify(payload));
+}
+
+function applyBoardBackground(payload) {
+  if (!payload || payload.type === 'default') {
+    boardArea.style.backgroundImage = 'none';
+    boardArea.style.backgroundColor = '#f5f7fb';
+    return;
+  }
+
+  if (payload.type === 'color') {
+    boardArea.style.backgroundImage = 'none';
+    boardArea.style.backgroundColor = payload.value;
+    return;
+  }
+
+  if (payload.type === 'image') {
+    boardArea.style.backgroundColor = '#dbeafe';
+    boardArea.style.backgroundImage = `url("${payload.value}")`;
+  }
+}
+
+function loadBoardBackground() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(BOARD_BG_KEY));
+    applyBoardBackground(stored);
+  } catch {
+    applyBoardBackground({ type: 'default' });
+  }
 }
 
 addTaskBtn.addEventListener('click', openCreateDialog);
@@ -189,6 +290,7 @@ taskForm.addEventListener('submit', (event) => {
       status: 'todo'
     };
     tasks.push(newTask);
+    createdTaskId = newTask.id;
     appendLog(`Nova tarefa criada: "${newTask.title}".`);
   }
 
@@ -205,13 +307,14 @@ board.addEventListener('click', (event) => {
   if (action === 'delete') deleteTask(id);
 });
 
+calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
+
 [...document.querySelectorAll('[data-mcp]')].forEach((button) => {
   button.addEventListener('click', () => {
     const mcp = button.dataset.mcp;
     const descriptions = {
-      github: 'Issues sincronizadas com o repositório.',
-      slack: 'Mensagem enviada no canal #kanban-updates.',
-      calendar: 'Eventos de prazo criados na agenda da equipe.'
+      github: 'Issues sincronizadas com o repositório (simulação).',
+      slack: 'Mensagem enviada no canal #kanban-updates (simulação).'
     };
     appendLog(`[MCP ${mcp.toUpperCase()}] ${descriptions[mcp]}`);
   });
@@ -225,5 +328,35 @@ document.getElementById('densityToggle').addEventListener('click', () => {
 searchInput.addEventListener('input', render);
 priorityFilter.addEventListener('change', render);
 
+boardColorPicker.addEventListener('input', (event) => {
+  const color = event.target.value;
+  const payload = { type: 'color', value: color };
+  applyBoardBackground(payload);
+  saveBoardBackground(payload);
+  appendLog(`GUI alterada: fundo do quadro atualizado para ${color}.`);
+});
+
+boardImagePicker.addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const payload = { type: 'image', value: reader.result };
+    applyBoardBackground(payload);
+    saveBoardBackground(payload);
+    appendLog(`GUI alterada: fundo do quadro por imagem "${file.name}".`);
+  };
+  reader.readAsDataURL(file);
+});
+
+clearBackgroundBtn.addEventListener('click', () => {
+  const payload = { type: 'default' };
+  applyBoardBackground(payload);
+  saveBoardBackground(payload);
+  appendLog('GUI alterada: fundo do quadro restaurado para padrão.');
+});
+
 loadLog();
+loadBoardBackground();
 render();

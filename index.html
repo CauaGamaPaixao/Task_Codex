@@ -19,7 +19,7 @@
   </header>
 
   <main>
-    <section>
+    <section id="boardArea" class="board-area">
       <div class="toolbar" aria-label="Filtros do board">
         <label>
           Buscar
@@ -40,17 +40,31 @@
 
     <aside class="panel">
       <h2>Integrações MCP</h2>
-      <p>Simulação de 3 MCPs diferentes para sincronização:</p>
+      <p>Integrações iniciais para evolução do projeto:</p>
       <ul>
+        <li><strong>MCP Google Calendar (v1)</strong>: gerar evento com próxima tarefa com prazo</li>
         <li><strong>MCP GitHub</strong>: converter tarefa em issue</li>
         <li><strong>MCP Slack</strong>: notificar mudanças de coluna</li>
-        <li><strong>MCP Google Calendar</strong>: criar lembrete de prazo</li>
       </ul>
       <div class="mcp-actions">
+        <button type="button" id="calendarSyncBtn">Google Calendar (v1)</button>
         <button type="button" data-mcp="github">Sincronizar GitHub</button>
         <button type="button" data-mcp="slack">Sincronizar Slack</button>
-        <button type="button" data-mcp="calendar">Sincronizar Calendar</button>
       </div>
+
+      <h3>Personalização do Fundo</h3>
+      <div class="bg-controls">
+        <label>
+          Cor fixa
+          <input type="color" id="boardColorPicker" value="#f5f7fb" />
+        </label>
+        <label>
+          Imagem do computador
+          <input type="file" id="boardImagePicker" accept="image/*" />
+        </label>
+        <button type="button" id="clearBackground" class="ghost">Restaurar fundo padrão</button>
+      </div>
+
       <pre id="log" aria-label="Log de eventos"></pre>
     </aside>
   </main>

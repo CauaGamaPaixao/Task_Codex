@@ -13,15 +13,12 @@ python -m http.server 8000
 
 Depois acesse: `http://localhost:8000`
 
-## Entregáveis
-- App Kanban funcional com drag-and-drop.
-- 1 modificação de GUI: **Modo Compacto**.
-- Simulação de 3 MCPs: GitHub, Slack e Google Calendar.
-- PRD detalhado em `PRD.md`.
-- Explicação de fluxo em `FLOW.md`.
-
-## Melhorias desta versão
-- Persistência local das tarefas e do log com `localStorage`.
-- Edição e exclusão de tarefas diretamente no card.
-- Campos extras de tarefa: responsável e prazo.
-- Filtros por texto e prioridade para facilitar operação do board.
+## Funcionalidades
+- Board Kanban com 4 colunas e drag-and-drop.
+- Criação, edição e exclusão de tarefas.
+- Filtro por texto e prioridade.
+- Persistência local de tarefas, log e preferências visuais.
+- Modificação de GUI: **Modo Compacto**.
+- Modificação de GUI adicional: fundo do quadro por cor fixa ou imagem local.
+- MCP Google Calendar (v1): abre evento pré-preenchido da próxima tarefa com prazo.
+- MCP GitHub e Slack em modo simulado.
