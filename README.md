@@ -14,13 +14,13 @@ python -m http.server 8000
 Depois acesse: `http://localhost:8000`
 
 ## Funcionalidades
-- Board Kanban com 4 colunas e drag-and-drop.
+- Board Kanban com colunas dinâmicas e drag-and-drop.
 - Criação, edição e exclusão de tarefas.
+- Criação e remoção de quadros/colunas pelo usuário.
 - Filtro por texto e prioridade.
-- Persistência local de tarefas e preferências visuais.
+- Persistência local de tarefas, colunas e preferências visuais.
 - Modificação de GUI: **Modo Compacto**.
 - Modificação de GUI adicional: fundo do quadro por cor fixa ou imagem local.
 - MCP Discord: gera resumo da task e abre Discord para envio.
-- MCP Discord Chat: permite criar/editar cards por comandos.
 - MCP Google Calendar (v1): abre evento pré-preenchido da próxima tarefa com prazo.
 - MCP Excel Backlog: exporta backlog em CSV compatível com Excel.

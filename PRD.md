@@ -1,44 +1,39 @@
 # PRD — Kanban Task App (Estágio ADS)
 
 ## 1. Visão do Produto
-O **Kanban Task App** é uma aplicação web inspirada em Trello para gestão visual de tarefas por colunas, com foco em times pequenos e documentação de projeto.
+O **Kanban Task App** é uma aplicação web inspirada em Trello para gestão visual de tarefas por colunas, com foco em times pequenos e com liberdade para adaptar o fluxo de trabalho.
 
 ## 2. Objetivo do Incremento Atual
-Evoluir as integrações MCP para apoiar comunicação e documentação: Discord (resumo + comandos via chat) e geração de backlog em Excel.
+Dar controle total ao usuário sobre os quadros/colunas do board, removendo o modelo fixo anterior e simplificando o MCP Discord ao uso de relatório da task.
 
 ## 3. Escopo desta versão
-1. Substituir MCP GitHub por **MCP Discord**.
-2. Enviar resumo da task para o Discord pessoal do desenvolvedor.
-3. Permitir criação e edição de cards por comando de chat.
-4. Criar **MCP Excel Backlog** para exportar tarefas em formato compatível com Excel.
+1. Remover a funcionalidade de Chat MCP Discord.
+2. Manter o MCP Discord apenas para envio de resumo da task.
+3. Tornar os quadros/colunas totalmente configuráveis pelo usuário.
+4. Permitir adicionar e remover quadros conforme a necessidade do projeto.
+5. Permitir que a tarefa seja criada ou editada escolhendo qualquer quadro existente.
 
 ## 4. Requisitos Funcionais
-- RF01: MCP Discord deve gerar relatório contendo título, resumo de descrição, prioridade e prazo.
-- RF02: MCP Discord deve copiar relatório para clipboard e abrir Discord em nova aba.
-- RF03: Chat MCP deve suportar comando `/nova` para criação de card.
-- RF04: Chat MCP deve suportar comando `/editar` para edição de card via ID.
-- RF05: Cards devem possuir identificador humano no formato `T-001`.
-- RF06: MCP Excel deve exportar backlog completo com colunas padronizadas para abertura no Excel.
+- RF01: Usuário deve criar novos quadros/colunas manualmente.
+- RF02: Usuário deve remover quadros/colunas quando não precisar mais deles.
+- RF03: Ao remover um quadro, o sistema deve realocar as tarefas para outro quadro válido.
+- RF04: Usuário deve escolher o quadro no momento de criar ou editar uma task.
+- RF05: MCP Discord deve enviar resumo da task com título, resumo da descrição, prioridade, prazo e quadro.
+- RF06: MCP Excel deve exportar backlog completo com o nome do quadro de cada tarefa.
 
-## 5. Comandos MCP Discord Chat
-### 5.1 Criar card
-`/nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável`
+## 5. Requisitos Não Funcionais
+- RNF01: O board deve persistir colunas e tarefas no navegador.
+- RNF02: O sistema deve impedir que o usuário fique sem nenhum quadro disponível.
+- RNF03: A interface deve continuar responsiva após a criação de múltiplas colunas.
 
-### 5.2 Editar card
-`/editar T-001 | titulo=...;descricao=...;prioridade=...;prazo=...;responsavel=...;status=todo|doing|review|done`
+## 6. Critérios de Aceite
+- CA01: Usuário consegue criar um novo quadro e visualizá-lo imediatamente.
+- CA02: Usuário consegue remover um quadro e as tasks são reaproveitadas em outro quadro.
+- CA03: Nova task pode ser criada em qualquer quadro existente.
+- CA04: Edição de task permite trocar o quadro de destino.
+- CA05: Discord exporta resumo com referência da task e quadro atual.
+- CA06: Excel exporta backlog com a coluna “Quadro”.
 
-## 6. Requisitos Não Funcionais
-- RNF01: Exportação deve gerar arquivo em UTF-8 para evitar problemas de acentuação no Excel.
-- RNF02: Parser de comando deve retornar mensagens amigáveis em caso de erro.
-- RNF03: Interface deve continuar responsiva mesmo com novas seções MCP.
-
-## 7. Critérios de Aceite
-- CA01: Botão Discord cria resumo correto e abre Discord.
-- CA02: Comando `/nova` cria card visível no board.
-- CA03: Comando `/editar` altera card existente pelo ID.
-- CA04: Exportação gera arquivo `.csv` que abre no Excel com colunas corretas.
-- CA05: ID único (`T-001`, `T-002`...) aparece no card e no export.
-
-## 8. Riscos
-- Falha no clipboard em navegadores sem permissão: fallback deve exibir mensagem para cópia manual.
-- Arquivo CSV depende da configuração regional do Excel (uso de `;` como separador ajuda no padrão PT-BR).
+## 7. Riscos
+- Boards com muitas colunas podem reduzir a legibilidade em telas pequenas.
+- Usuários podem remover quadros com muitas tasks sem perceber a realocação automática, exigindo feedback claro na interface.

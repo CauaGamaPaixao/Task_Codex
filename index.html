@@ -20,7 +20,7 @@
 
   <main>
     <section id="boardArea" class="board-area">
-      <div class="toolbar" aria-label="Filtros do board">
+      <div class="toolbar" aria-label="Controles do board">
         <label>
           Buscar
           <input id="searchInput" type="search" placeholder="Título, descrição, responsável ou ID..." />
@@ -34,6 +34,13 @@
             <option value="Alta">Alta</option>
           </select>
         </label>
+        <div class="column-creator">
+          <label>
+            Novo quadro/coluna
+            <input id="newColumnName" type="text" placeholder="Ex.: Ideias, QA, Publicado" />
+          </label>
+          <button id="addColumnBtn" type="button">Adicionar quadro</button>
+        </div>
       </div>
       <section class="board" id="board" aria-live="polite"></section>
     </section>
@@ -42,7 +49,7 @@
       <h2>Integrações MCP</h2>
       <p>MCPs ativos para evolução do projeto:</p>
       <ul>
-        <li><strong>MCP Discord</strong>: relatório da task + criação/edição via chat</li>
+        <li><strong>MCP Discord</strong>: relatório da task para o Discord pessoal do desenvolvedor</li>
         <li><strong>MCP Google Calendar (v1)</strong>: gerar evento da próxima tarefa com prazo</li>
         <li><strong>MCP Excel Backlog</strong>: exportar tarefas em formato Excel (CSV)</li>
       </ul>
@@ -53,14 +60,10 @@
         <button type="button" id="excelExportBtn">Exportar backlog (Excel)</button>
       </div>
 
-      <h3>Chat MCP Discord</h3>
-      <p class="helper-text">Comandos rápidos:</p>
-      <code class="cmd">/nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável</code>
-      <code class="cmd">/editar T-001 | titulo=Novo título;descricao=Texto;prioridade=Alta;prazo=2026-03-25;responsavel=Ana;status=doing</code>
-      <div class="chat-box">
-        <input id="chatCommand" type="text" placeholder="Digite um comando /nova ou /editar" />
-        <button type="button" id="runChatCommand">Executar comando</button>
-      </div>
+      <h3>Gestão dos Quadros</h3>
+      <p class="helper-text">
+        Agora os quadros não são mais fixos. Você pode criar novas colunas e remover as que não fizerem mais sentido para o fluxo do projeto.
+      </p>
 
       <h3>Personalização do Fundo</h3>
       <div class="bg-controls">
@@ -93,6 +96,9 @@
           <option selected>Média</option>
           <option>Alta</option>
         </select>
+      </label>
+      <label>Quadro
+        <select name="status" id="taskStatusSelect"></select>
       </label>
       <menu>
         <button type="button" id="cancelDialog">Cancelar</button>

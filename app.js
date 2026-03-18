@@ -1,20 +1,21 @@
-const STORAGE_KEY = 'kanban-tasks-v4';
+const STORAGE_KEY = 'kanban-tasks-v5';
+const COLUMN_STORAGE_KEY = 'kanban-columns-v2';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
 
-const columns = [
-  { id: 'todo', name: 'A Fazer' },
-  { id: 'doing', name: 'Em Progresso' },
-  { id: 'review', name: 'Revisão' },
-  { id: 'done', name: 'Concluído' }
+const starterColumns = [
+  { id: crypto.randomUUID(), name: 'Backlog' },
+  { id: crypto.randomUUID(), name: 'Em andamento' },
+  { id: crypto.randomUUID(), name: 'Concluído' }
 ];
 
 const defaults = [
-  { id: crypto.randomUUID(), ref: 'T-001', title: 'Definir backlog', description: 'Levantar funcionalidades MVP', owner: 'Equipe', dueDate: '', priority: 'Alta', status: 'todo' },
-  { id: crypto.randomUUID(), ref: 'T-002', title: 'Criar layout inicial', description: 'Estruturar board Kanban', owner: 'Front-end', dueDate: '', priority: 'Média', status: 'doing' },
-  { id: crypto.randomUUID(), ref: 'T-003', title: 'Validar com gestor', description: 'Review da sprint', owner: 'PM', dueDate: '', priority: 'Baixa', status: 'review' }
+  { id: crypto.randomUUID(), ref: 'T-001', title: 'Definir backlog', description: 'Levantar funcionalidades MVP', owner: 'Equipe', dueDate: '', priority: 'Alta', status: starterColumns[0].id },
+  { id: crypto.randomUUID(), ref: 'T-002', title: 'Criar layout inicial', description: 'Estruturar board Kanban', owner: 'Front-end', dueDate: '', priority: 'Média', status: starterColumns[1].id },
+  { id: crypto.randomUUID(), ref: 'T-003', title: 'Validar com gestor', description: 'Review da sprint', owner: 'PM', dueDate: '', priority: 'Baixa', status: starterColumns[1].id }
 ];
 
+let columns = loadColumns();
 let tasks = hydrateTasks(loadTasks());
 let createdTaskId = null;
 let movedTaskId = null;
@@ -23,6 +24,8 @@ const board = document.getElementById('board');
 const boardArea = document.getElementById('boardArea');
 const dialog = document.getElementById('taskDialog');
 const addTaskBtn = document.getElementById('addTaskBtn');
+const addColumnBtn = document.getElementById('addColumnBtn');
+const newColumnName = document.getElementById('newColumnName');
 const taskForm = document.getElementById('taskForm');
 const cancelDialog = document.getElementById('cancelDialog');
 const statusMessage = document.getElementById('statusMessage');
@@ -32,11 +35,25 @@ const priorityFilter = document.getElementById('priorityFilter');
 const discordReportBtn = document.getElementById('discordReportBtn');
 const calendarSyncBtn = document.getElementById('calendarSyncBtn');
 const excelExportBtn = document.getElementById('excelExportBtn');
-const chatCommand = document.getElementById('chatCommand');
-const runChatCommand = document.getElementById('runChatCommand');
 const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
+const taskStatusSelect = document.getElementById('taskStatusSelect');
+
+function loadColumns() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(COLUMN_STORAGE_KEY));
+    if (Array.isArray(stored) && stored.length > 0) return stored;
+  } catch {
+    // fallback to starter columns
+  }
+  localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(starterColumns));
+  return starterColumns;
+}
+
+function persistColumns() {
+  localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columns));
+}
 
 function loadTasks() {
   try {
@@ -48,15 +65,31 @@ function loadTasks() {
 
 function hydrateTasks(rawTasks) {
   let counter = Number(localStorage.getItem(REF_COUNTER_KEY) || '0');
+  const legacyMap = {
+    todo: columns[0]?.id,
+    doing: columns[1]?.id || columns[0]?.id,
+    review: columns[1]?.id || columns[0]?.id,
+    done: columns[columns.length - 1]?.id || columns[0]?.id
+  };
+
   const hydrated = rawTasks.map((task) => {
-    if (task.ref) {
-      const value = Number(task.ref.replace('T-', ''));
+    const nextTask = { ...task };
+
+    if (nextTask.ref) {
+      const value = Number(nextTask.ref.replace('T-', ''));
       if (!Number.isNaN(value)) counter = Math.max(counter, value);
-      return task;
+    } else {
+      counter += 1;
+      nextTask.ref = `T-${String(counter).padStart(3, '0')}`;
     }
-    counter += 1;
-    return { ...task, ref: `T-${String(counter).padStart(3, '0')}` };
+
+    if (!columns.some((column) => column.id === nextTask.status)) {
+      nextTask.status = legacyMap[nextTask.status] || columns[0]?.id;
+    }
+
+    return nextTask;
   });
+
   localStorage.setItem(REF_COUNTER_KEY, String(counter));
   return hydrated;
 }
@@ -97,18 +130,44 @@ function filteredTasks() {
 }
 
 function getStatusLabel(statusId) {
-  return columns.find((col) => col.id === statusId)?.name || statusId;
+  return columns.find((column) => column.id === statusId)?.name || 'Sem quadro';
+}
+
+function refreshStatusOptions(selectedId = taskStatusSelect.value) {
+  taskStatusSelect.innerHTML = '';
+  columns.forEach((column) => {
+    const option = document.createElement('option');
+    option.value = column.id;
+    option.textContent = column.name;
+    if (selectedId === column.id) option.selected = true;
+    taskStatusSelect.appendChild(option);
+  });
+}
+
+function ensureValidTaskStatuses() {
+  const fallbackStatus = columns[0]?.id;
+  tasks = tasks.map((task) => ({
+    ...task,
+    status: columns.some((column) => column.id === task.status) ? task.status : fallbackStatus
+  }));
+  persistTasks();
 }
 
 function render() {
   board.innerHTML = '';
+  refreshStatusOptions();
   const visible = filteredTasks();
 
   columns.forEach((column) => {
     const colEl = document.createElement('section');
     colEl.className = 'column';
     colEl.dataset.status = column.id;
-    colEl.innerHTML = `<h3>${column.name}</h3>`;
+    colEl.innerHTML = `
+      <div class="column-header">
+        <h3>${escapeHtml(column.name)}</h3>
+        <button class="ghost remove-column-btn" data-column-id="${column.id}" type="button">Remover</button>
+      </div>
+    `;
 
     visible.filter((task) => task.status === column.id).forEach((task) => {
       const card = document.createElement('article');
@@ -182,10 +241,53 @@ function render() {
   }
 }
 
+function addColumn() {
+  const name = newColumnName.value.trim();
+  if (!name) {
+    setStatus('Informe um nome para o novo quadro.');
+    return;
+  }
+
+  const column = { id: crypto.randomUUID(), name };
+  columns.push(column);
+  persistColumns();
+  refreshStatusOptions(column.id);
+  render();
+  newColumnName.value = '';
+  setStatus(`Quadro "${name}" criado com sucesso.`);
+}
+
+function removeColumn(columnId) {
+  if (columns.length === 1) {
+    setStatus('É necessário manter pelo menos um quadro no board.');
+    return;
+  }
+
+  const column = columns.find((item) => item.id === columnId);
+  if (!column) return;
+
+  const fallbackColumn = columns.find((item) => item.id !== columnId);
+  tasks = tasks.map((task) => ({
+    ...task,
+    status: task.status === columnId ? fallbackColumn.id : task.status
+  }));
+  columns = columns.filter((item) => item.id !== columnId);
+  persistColumns();
+  persistTasks();
+  refreshStatusOptions(fallbackColumn.id);
+  render();
+  setStatus(`Quadro "${column.name}" removido. As tarefas foram movidas para "${fallbackColumn.name}".`);
+}
+
 function openCreateDialog() {
+  if (!columns.length) {
+    setStatus('Crie pelo menos um quadro antes de cadastrar tarefas.');
+    return;
+  }
   taskForm.reset();
   taskForm.id.value = '';
   dialogTitle.textContent = 'Nova Tarefa';
+  refreshStatusOptions(columns[0].id);
   dialog.showModal();
 }
 
@@ -199,6 +301,7 @@ function openEditDialog(taskId) {
   taskForm.owner.value = task.owner || '';
   taskForm.dueDate.value = task.dueDate || '';
   taskForm.priority.value = task.priority;
+  refreshStatusOptions(task.status);
   dialog.showModal();
 }
 
@@ -214,7 +317,7 @@ function deleteTask(taskId) {
 function toCalendarDateRange(dateText) {
   const base = new Date(`${dateText}T09:00:00`);
   const end = new Date(base.getTime() + 60 * 60 * 1000);
-  const fmt = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const fmt = (date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   return `${fmt(base)}/${fmt(end)}`;
 }
 
@@ -229,7 +332,7 @@ function buildGoogleCalendarUrl(task) {
 
 function syncGoogleCalendarV1() {
   const candidate = tasks
-    .filter((task) => task.status !== 'done' && task.dueDate)
+    .filter((task) => task.dueDate)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
   if (!candidate) {
@@ -249,12 +352,10 @@ function summarizeDescription(description) {
 }
 
 async function sendDiscordReport() {
-  const candidate = tasks
-    .filter((task) => task.status !== 'done')
-    .sort((a, b) => a.ref.localeCompare(b.ref))[0];
+  const candidate = tasks.sort((a, b) => a.ref.localeCompare(b.ref))[0];
 
   if (!candidate) {
-    setStatus('[MCP DISCORD] Não há tarefas pendentes para relatório.');
+    setStatus('[MCP DISCORD] Não há tarefas para relatório.');
     return;
   }
 
@@ -263,7 +364,8 @@ async function sendDiscordReport() {
     `Título: ${candidate.title}`,
     `Resumo: ${summarizeDescription(candidate.description)}`,
     `Prioridade: ${candidate.priority}`,
-    `Prazo: ${candidate.dueDate || 'Não definido'}`
+    `Prazo: ${candidate.dueDate || 'Não definido'}`,
+    `Quadro: ${getStatusLabel(candidate.status)}`
   ].join('\n');
 
   try {
@@ -275,90 +377,13 @@ async function sendDiscordReport() {
   }
 }
 
-function createTaskFromChat(parts) {
-  if (parts.length < 5) {
-    setStatus('Uso: /nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável');
-    return;
-  }
-
-  const [title, description, priority, dueDate, owner] = parts.map((item) => item.trim());
-  const normalizedPriority = ['Baixa', 'Média', 'Alta'].includes(priority) ? priority : 'Média';
-
-  const task = {
-    id: crypto.randomUUID(),
-    ref: nextTaskRef(),
-    title,
-    description,
-    priority: normalizedPriority,
-    dueDate,
-    owner,
-    status: 'todo'
-  };
-
-  tasks.push(task);
-  createdTaskId = task.id;
-  persistTasks();
-  render();
-  setStatus(`[MCP DISCORD] Card criado via chat: ${task.ref} - ${task.title}.`);
-}
-
-function editTaskFromChat(ref, updatesText) {
-  const task = tasks.find((item) => item.ref.toLowerCase() === ref.toLowerCase());
-  if (!task) {
-    setStatus(`[MCP DISCORD] Card ${ref} não encontrado.`);
-    return;
-  }
-
-  const updates = updatesText.split(';').map((entry) => entry.trim()).filter(Boolean);
-  const map = Object.fromEntries(
-    updates
-      .map((entry) => entry.split('=').map((v) => v.trim()))
-      .filter((parts) => parts.length === 2)
-  );
-
-  if (map.titulo) task.title = map.titulo;
-  if (map.descricao) task.description = map.descricao;
-  if (map.prioridade && ['Baixa', 'Média', 'Alta'].includes(map.prioridade)) task.priority = map.prioridade;
-  if (map.prazo) task.dueDate = map.prazo;
-  if (map.responsavel) task.owner = map.responsavel;
-  if (map.status && columns.some((col) => col.id === map.status)) task.status = map.status;
-
-  persistTasks();
-  render();
-  setStatus(`[MCP DISCORD] Card ${task.ref} atualizado via chat.`);
-}
-
-function processDiscordChatCommand(command) {
-  const trimmed = command.trim();
-
-  if (trimmed.startsWith('/nova ')) {
-    const payload = trimmed.slice(6);
-    const parts = payload.split('|');
-    createTaskFromChat(parts);
-    return;
-  }
-
-  if (trimmed.startsWith('/editar ')) {
-    const payload = trimmed.slice(8);
-    const [ref, updates] = payload.split('|').map((item) => item.trim());
-    if (!ref || !updates) {
-      setStatus('Uso: /editar T-001 | titulo=...;descricao=...;prioridade=...;prazo=...;responsavel=...;status=todo');
-      return;
-    }
-    editTaskFromChat(ref, updates);
-    return;
-  }
-
-  setStatus('Comando inválido. Use /nova ou /editar.');
-}
-
 function exportBacklogToExcelCsv() {
   if (!tasks.length) {
     setStatus('[MCP EXCEL] Nenhuma tarefa para exportar.');
     return;
   }
 
-  const header = ['ID', 'Título', 'Descrição', 'Prioridade', 'Prazo', 'Responsável', 'Status'];
+  const header = ['ID', 'Título', 'Descrição', 'Prioridade', 'Prazo', 'Responsável', 'Quadro'];
   const rows = tasks.map((task) => [
     task.ref,
     task.title,
@@ -418,7 +443,15 @@ function loadBoardBackground() {
 }
 
 addTaskBtn.addEventListener('click', openCreateDialog);
+addColumnBtn.addEventListener('click', addColumn);
 cancelDialog.addEventListener('click', () => dialog.close());
+
+newColumnName.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addColumn();
+  }
+});
 
 taskForm.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -429,28 +462,29 @@ taskForm.addEventListener('submit', (event) => {
     description: formData.get('description')?.toString().trim(),
     owner: formData.get('owner')?.toString().trim(),
     dueDate: formData.get('dueDate')?.toString(),
-    priority: formData.get('priority')?.toString()
+    priority: formData.get('priority')?.toString(),
+    status: formData.get('status')?.toString() || columns[0]?.id
   };
 
   if (!payload.title) return;
 
   const id = formData.get('id')?.toString();
   if (id) {
-    const task = tasks.find((t) => t.id === id);
+    const task = tasks.find((item) => item.id === id);
     if (task) {
       task.title = payload.title;
       task.description = payload.description;
       task.owner = payload.owner;
       task.dueDate = payload.dueDate;
       task.priority = payload.priority;
+      task.status = payload.status;
       setStatus(`Editada: ${task.ref} - "${task.title}".`);
     }
   } else {
     const newTask = {
       id: crypto.randomUUID(),
       ref: nextTaskRef(),
-      ...payload,
-      status: 'todo'
+      ...payload
     };
     tasks.push(newTask);
     createdTaskId = newTask.id;
@@ -463,28 +497,23 @@ taskForm.addEventListener('submit', (event) => {
 });
 
 board.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-action]');
-  if (!button) return;
-  const { action, id } = button.dataset;
-  if (action === 'edit') openEditDialog(id);
-  if (action === 'delete') deleteTask(id);
+  const actionButton = event.target.closest('button[data-action]');
+  if (actionButton) {
+    const { action, id } = actionButton.dataset;
+    if (action === 'edit') openEditDialog(id);
+    if (action === 'delete') deleteTask(id);
+    return;
+  }
+
+  const removeColumnButton = event.target.closest('button[data-column-id]');
+  if (removeColumnButton) {
+    removeColumn(removeColumnButton.dataset.columnId);
+  }
 });
 
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
-
-runChatCommand.addEventListener('click', () => {
-  processDiscordChatCommand(chatCommand.value);
-  chatCommand.value = '';
-});
-
-chatCommand.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    runChatCommand.click();
-  }
-});
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
@@ -523,5 +552,6 @@ clearBackgroundBtn.addEventListener('click', () => {
   setStatus('GUI alterada: fundo do quadro restaurado para padrão.');
 });
 
+ensureValidTaskStatuses();
 loadBoardBackground();
 render();
