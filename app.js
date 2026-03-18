@@ -1,5 +1,6 @@
-const STORAGE_KEY = 'kanban-tasks-v3';
+const STORAGE_KEY = 'kanban-tasks-v4';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
+const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
 
 const columns = [
   { id: 'todo', name: 'A Fazer' },
@@ -9,15 +10,14 @@ const columns = [
 ];
 
 const defaults = [
-  { id: crypto.randomUUID(), title: 'Definir backlog', description: 'Levantar funcionalidades MVP', owner: 'Equipe', dueDate: '', priority: 'Alta', status: 'todo' },
-  { id: crypto.randomUUID(), title: 'Criar layout inicial', description: 'Estruturar board Kanban', owner: 'Front-end', dueDate: '', priority: 'Média', status: 'doing' },
-  { id: crypto.randomUUID(), title: 'Validar com gestor', description: 'Review da sprint', owner: 'PM', dueDate: '', priority: 'Baixa', status: 'review' }
+  { id: crypto.randomUUID(), ref: 'T-001', title: 'Definir backlog', description: 'Levantar funcionalidades MVP', owner: 'Equipe', dueDate: '', priority: 'Alta', status: 'todo' },
+  { id: crypto.randomUUID(), ref: 'T-002', title: 'Criar layout inicial', description: 'Estruturar board Kanban', owner: 'Front-end', dueDate: '', priority: 'Média', status: 'doing' },
+  { id: crypto.randomUUID(), ref: 'T-003', title: 'Validar com gestor', description: 'Review da sprint', owner: 'PM', dueDate: '', priority: 'Baixa', status: 'review' }
 ];
 
-let tasks = loadTasks();
+let tasks = hydrateTasks(loadTasks());
 let createdTaskId = null;
 let movedTaskId = null;
-let draggingTaskId = null;
 
 const board = document.getElementById('board');
 const boardArea = document.getElementById('boardArea');
@@ -29,7 +29,11 @@ const statusMessage = document.getElementById('statusMessage');
 const dialogTitle = document.getElementById('dialogTitle');
 const searchInput = document.getElementById('searchInput');
 const priorityFilter = document.getElementById('priorityFilter');
+const discordReportBtn = document.getElementById('discordReportBtn');
 const calendarSyncBtn = document.getElementById('calendarSyncBtn');
+const excelExportBtn = document.getElementById('excelExportBtn');
+const chatCommand = document.getElementById('chatCommand');
+const runChatCommand = document.getElementById('runChatCommand');
 const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
@@ -40,6 +44,27 @@ function loadTasks() {
   } catch {
     return defaults;
   }
+}
+
+function hydrateTasks(rawTasks) {
+  let counter = Number(localStorage.getItem(REF_COUNTER_KEY) || '0');
+  const hydrated = rawTasks.map((task) => {
+    if (task.ref) {
+      const value = Number(task.ref.replace('T-', ''));
+      if (!Number.isNaN(value)) counter = Math.max(counter, value);
+      return task;
+    }
+    counter += 1;
+    return { ...task, ref: `T-${String(counter).padStart(3, '0')}` };
+  });
+  localStorage.setItem(REF_COUNTER_KEY, String(counter));
+  return hydrated;
+}
+
+function nextTaskRef() {
+  const current = Number(localStorage.getItem(REF_COUNTER_KEY) || '0') + 1;
+  localStorage.setItem(REF_COUNTER_KEY, String(current));
+  return `T-${String(current).padStart(3, '0')}`;
 }
 
 function persistTasks() {
@@ -64,11 +89,15 @@ function filteredTasks() {
   const pf = priorityFilter.value;
 
   return tasks.filter((task) => {
-    const text = `${task.title} ${task.description} ${task.owner}`.toLowerCase();
+    const text = `${task.ref} ${task.title} ${task.description} ${task.owner}`.toLowerCase();
     const byText = !q || text.includes(q);
     const byPriority = !pf || task.priority === pf;
     return byText && byPriority;
   });
+}
+
+function getStatusLabel(statusId) {
+  return columns.find((col) => col.id === statusId)?.name || statusId;
 }
 
 function render() {
@@ -94,6 +123,7 @@ function render() {
       const owner = task.owner ? ` | Resp.: ${task.owner}` : '';
 
       card.innerHTML = `
+        <span class="card-id">${escapeHtml(task.ref)}</span>
         <strong>${escapeHtml(task.title)}</strong>
         <p>${escapeHtml(task.description || 'Sem descrição')}</p>
         <small>Prioridade: ${task.priority}${owner}${due}</small>
@@ -104,14 +134,12 @@ function render() {
       `;
 
       card.addEventListener('dragstart', (event) => {
-        draggingTaskId = task.id;
         card.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/task-id', task.id);
       });
 
       card.addEventListener('dragend', () => {
-        draggingTaskId = null;
         card.classList.remove('dragging');
       });
 
@@ -164,7 +192,7 @@ function openCreateDialog() {
 function openEditDialog(taskId) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return;
-  dialogTitle.textContent = 'Editar Tarefa';
+  dialogTitle.textContent = `Editar Tarefa ${task.ref}`;
   taskForm.id.value = task.id;
   taskForm.title.value = task.title;
   taskForm.description.value = task.description;
@@ -178,7 +206,7 @@ function deleteTask(taskId) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return;
   tasks = tasks.filter((t) => t.id !== taskId);
-  setStatus(`Excluída: "${task.title}".`);
+  setStatus(`Excluída: ${task.ref} - "${task.title}".`);
   persistTasks();
   render();
 }
@@ -193,7 +221,9 @@ function toCalendarDateRange(dateText) {
 function buildGoogleCalendarUrl(task) {
   const title = encodeURIComponent(`Kanban: ${task.title}`);
   const details = encodeURIComponent(task.description || 'Tarefa criada no Kanban Task App');
-  const dates = task.dueDate ? toCalendarDateRange(task.dueDate) : toCalendarDateRange(new Date().toISOString().slice(0, 10));
+  const dates = task.dueDate
+    ? toCalendarDateRange(task.dueDate)
+    : toCalendarDateRange(new Date().toISOString().slice(0, 10));
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
 }
 
@@ -209,7 +239,150 @@ function syncGoogleCalendarV1() {
 
   const url = buildGoogleCalendarUrl(candidate);
   window.open(url, '_blank', 'noopener,noreferrer');
-  setStatus(`[MCP CALENDAR] Evento preparado para "${candidate.title}" (${candidate.dueDate}).`);
+  setStatus(`[MCP CALENDAR] Evento preparado para ${candidate.ref} (${candidate.dueDate}).`);
+}
+
+function summarizeDescription(description) {
+  const text = (description || '').trim();
+  if (!text) return 'Sem descrição';
+  return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+}
+
+async function sendDiscordReport() {
+  const candidate = tasks
+    .filter((task) => task.status !== 'done')
+    .sort((a, b) => a.ref.localeCompare(b.ref))[0];
+
+  if (!candidate) {
+    setStatus('[MCP DISCORD] Não há tarefas pendentes para relatório.');
+    return;
+  }
+
+  const message = [
+    `📌 Relatório da Task ${candidate.ref}`,
+    `Título: ${candidate.title}`,
+    `Resumo: ${summarizeDescription(candidate.description)}`,
+    `Prioridade: ${candidate.priority}`,
+    `Prazo: ${candidate.dueDate || 'Não definido'}`
+  ].join('\n');
+
+  try {
+    await navigator.clipboard.writeText(message);
+    window.open('https://discord.com/channels/@me', '_blank', 'noopener,noreferrer');
+    setStatus(`[MCP DISCORD] Relatório de ${candidate.ref} copiado e Discord aberto.`);
+  } catch {
+    setStatus(`[MCP DISCORD] Copie manualmente:\n${message}`);
+  }
+}
+
+function createTaskFromChat(parts) {
+  if (parts.length < 5) {
+    setStatus('Uso: /nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável');
+    return;
+  }
+
+  const [title, description, priority, dueDate, owner] = parts.map((item) => item.trim());
+  const normalizedPriority = ['Baixa', 'Média', 'Alta'].includes(priority) ? priority : 'Média';
+
+  const task = {
+    id: crypto.randomUUID(),
+    ref: nextTaskRef(),
+    title,
+    description,
+    priority: normalizedPriority,
+    dueDate,
+    owner,
+    status: 'todo'
+  };
+
+  tasks.push(task);
+  createdTaskId = task.id;
+  persistTasks();
+  render();
+  setStatus(`[MCP DISCORD] Card criado via chat: ${task.ref} - ${task.title}.`);
+}
+
+function editTaskFromChat(ref, updatesText) {
+  const task = tasks.find((item) => item.ref.toLowerCase() === ref.toLowerCase());
+  if (!task) {
+    setStatus(`[MCP DISCORD] Card ${ref} não encontrado.`);
+    return;
+  }
+
+  const updates = updatesText.split(';').map((entry) => entry.trim()).filter(Boolean);
+  const map = Object.fromEntries(
+    updates
+      .map((entry) => entry.split('=').map((v) => v.trim()))
+      .filter((parts) => parts.length === 2)
+  );
+
+  if (map.titulo) task.title = map.titulo;
+  if (map.descricao) task.description = map.descricao;
+  if (map.prioridade && ['Baixa', 'Média', 'Alta'].includes(map.prioridade)) task.priority = map.prioridade;
+  if (map.prazo) task.dueDate = map.prazo;
+  if (map.responsavel) task.owner = map.responsavel;
+  if (map.status && columns.some((col) => col.id === map.status)) task.status = map.status;
+
+  persistTasks();
+  render();
+  setStatus(`[MCP DISCORD] Card ${task.ref} atualizado via chat.`);
+}
+
+function processDiscordChatCommand(command) {
+  const trimmed = command.trim();
+
+  if (trimmed.startsWith('/nova ')) {
+    const payload = trimmed.slice(6);
+    const parts = payload.split('|');
+    createTaskFromChat(parts);
+    return;
+  }
+
+  if (trimmed.startsWith('/editar ')) {
+    const payload = trimmed.slice(8);
+    const [ref, updates] = payload.split('|').map((item) => item.trim());
+    if (!ref || !updates) {
+      setStatus('Uso: /editar T-001 | titulo=...;descricao=...;prioridade=...;prazo=...;responsavel=...;status=todo');
+      return;
+    }
+    editTaskFromChat(ref, updates);
+    return;
+  }
+
+  setStatus('Comando inválido. Use /nova ou /editar.');
+}
+
+function exportBacklogToExcelCsv() {
+  if (!tasks.length) {
+    setStatus('[MCP EXCEL] Nenhuma tarefa para exportar.');
+    return;
+  }
+
+  const header = ['ID', 'Título', 'Descrição', 'Prioridade', 'Prazo', 'Responsável', 'Status'];
+  const rows = tasks.map((task) => [
+    task.ref,
+    task.title,
+    task.description || '',
+    task.priority,
+    task.dueDate || '',
+    task.owner || '',
+    getStatusLabel(task.status)
+  ]);
+
+  const escapeCsv = (value) => `"${String(value).replaceAll('"', '""')}"`;
+  const csv = [header, ...rows].map((line) => line.map(escapeCsv).join(';')).join('\n');
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `backlog-kanban-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+
+  setStatus('[MCP EXCEL] Backlog exportado em CSV compatível com Excel.');
 }
 
 function saveBoardBackground(payload) {
@@ -270,17 +443,18 @@ taskForm.addEventListener('submit', (event) => {
       task.owner = payload.owner;
       task.dueDate = payload.dueDate;
       task.priority = payload.priority;
-      setStatus(`Editada: "${task.title}".`);
+      setStatus(`Editada: ${task.ref} - "${task.title}".`);
     }
   } else {
     const newTask = {
       id: crypto.randomUUID(),
+      ref: nextTaskRef(),
       ...payload,
       status: 'todo'
     };
     tasks.push(newTask);
     createdTaskId = newTask.id;
-    setStatus(`Nova tarefa criada: "${newTask.title}".`);
+    setStatus(`Nova tarefa criada: ${newTask.ref} - "${newTask.title}".`);
   }
 
   persistTasks();
@@ -296,17 +470,20 @@ board.addEventListener('click', (event) => {
   if (action === 'delete') deleteTask(id);
 });
 
+discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
+excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
 
-[...document.querySelectorAll('[data-mcp]')].forEach((button) => {
-  button.addEventListener('click', () => {
-    const mcp = button.dataset.mcp;
-    const descriptions = {
-      github: 'Issues sincronizadas com o repositório (simulação).',
-      slack: 'Mensagem enviada no canal #kanban-updates (simulação).'
-    };
-    setStatus(`[MCP ${mcp.toUpperCase()}] ${descriptions[mcp]}`);
-  });
+runChatCommand.addEventListener('click', () => {
+  processDiscordChatCommand(chatCommand.value);
+  chatCommand.value = '';
+});
+
+chatCommand.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    runChatCommand.click();
+  }
 });
 
 document.getElementById('densityToggle').addEventListener('click', () => {

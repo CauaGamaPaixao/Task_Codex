@@ -23,7 +23,7 @@
       <div class="toolbar" aria-label="Filtros do board">
         <label>
           Buscar
-          <input id="searchInput" type="search" placeholder="Título, descrição, responsável..." />
+          <input id="searchInput" type="search" placeholder="Título, descrição, responsável ou ID..." />
         </label>
         <label>
           Prioridade
@@ -40,16 +40,26 @@
 
     <aside class="panel">
       <h2>Integrações MCP</h2>
-      <p>Integrações iniciais para evolução do projeto:</p>
+      <p>MCPs ativos para evolução do projeto:</p>
       <ul>
-        <li><strong>MCP Google Calendar (v1)</strong>: gerar evento com próxima tarefa com prazo</li>
-        <li><strong>MCP GitHub</strong>: converter tarefa em issue</li>
-        <li><strong>MCP Slack</strong>: notificar mudanças de coluna</li>
+        <li><strong>MCP Discord</strong>: relatório da task + criação/edição via chat</li>
+        <li><strong>MCP Google Calendar (v1)</strong>: gerar evento da próxima tarefa com prazo</li>
+        <li><strong>MCP Excel Backlog</strong>: exportar tarefas em formato Excel (CSV)</li>
       </ul>
+
       <div class="mcp-actions">
+        <button type="button" id="discordReportBtn">Enviar resumo p/ Discord</button>
         <button type="button" id="calendarSyncBtn">Google Calendar (v1)</button>
-        <button type="button" data-mcp="github">Sincronizar GitHub</button>
-        <button type="button" data-mcp="slack">Sincronizar Slack</button>
+        <button type="button" id="excelExportBtn">Exportar backlog (Excel)</button>
+      </div>
+
+      <h3>Chat MCP Discord</h3>
+      <p class="helper-text">Comandos rápidos:</p>
+      <code class="cmd">/nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável</code>
+      <code class="cmd">/editar T-001 | titulo=Novo título;descricao=Texto;prioridade=Alta;prazo=2026-03-25;responsavel=Ana;status=doing</code>
+      <div class="chat-box">
+        <input id="chatCommand" type="text" placeholder="Digite um comando /nova ou /editar" />
+        <button type="button" id="runChatCommand">Executar comando</button>
       </div>
 
       <h3>Personalização do Fundo</h3>

@@ -20,5 +20,7 @@ Depois acesse: `http://localhost:8000`
 - Persistência local de tarefas e preferências visuais.
 - Modificação de GUI: **Modo Compacto**.
 - Modificação de GUI adicional: fundo do quadro por cor fixa ou imagem local.
+- MCP Discord: gera resumo da task e abre Discord para envio.
+- MCP Discord Chat: permite criar/editar cards por comandos.
 - MCP Google Calendar (v1): abre evento pré-preenchido da próxima tarefa com prazo.
-- MCP GitHub e Slack em modo simulado.
+- MCP Excel Backlog: exporta backlog em CSV compatível com Excel.

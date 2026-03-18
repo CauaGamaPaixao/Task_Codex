@@ -1,39 +1,44 @@
 # PRD — Kanban Task App (Estágio ADS)
 
 ## 1. Visão do Produto
-O **Kanban Task App** é uma aplicação web inspirada em Trello para gestão visual de tarefas por colunas, com foco em times pequenos.
+O **Kanban Task App** é uma aplicação web inspirada em Trello para gestão visual de tarefas por colunas, com foco em times pequenos e documentação de projeto.
 
 ## 2. Objetivo do Incremento Atual
-Melhorar a experiência visual e interação do usuário, além de iniciar integração realista com Google Calendar.
+Evoluir as integrações MCP para apoiar comunicação e documentação: Discord (resumo + comandos via chat) e geração de backlog em Excel.
 
 ## 3. Escopo desta versão
-1. Melhorias visuais gerais no board e painéis.
-2. Animações fluidas na criação e movimentação dos cards.
-3. MCP Google Calendar (v1) com geração de evento pré-preenchido.
-4. GUI adicional para personalizar fundo por cor fixa ou imagem local.
-5. Persistência das preferências visuais.
+1. Substituir MCP GitHub por **MCP Discord**.
+2. Enviar resumo da task para o Discord pessoal do desenvolvedor.
+3. Permitir criação e edição de cards por comando de chat.
+4. Criar **MCP Excel Backlog** para exportar tarefas em formato compatível com Excel.
 
 ## 4. Requisitos Funcionais
-- RF01: Criar tarefa com animação de entrada.
-- RF02: Mover tarefa com feedback visual de coluna e destaque de movimentação.
-- RF03: Permitir seleção de fundo por color picker.
-- RF04: Permitir upload de imagem local para fundo do quadro.
-- RF05: Restaurar fundo padrão por botão dedicado.
-- RF06: MCP Google Calendar deve abrir evento pré-preenchido da próxima tarefa com prazo.
+- RF01: MCP Discord deve gerar relatório contendo título, resumo de descrição, prioridade e prazo.
+- RF02: MCP Discord deve copiar relatório para clipboard e abrir Discord em nova aba.
+- RF03: Chat MCP deve suportar comando `/nova` para criação de card.
+- RF04: Chat MCP deve suportar comando `/editar` para edição de card via ID.
+- RF05: Cards devem possuir identificador humano no formato `T-001`.
+- RF06: MCP Excel deve exportar backlog completo com colunas padronizadas para abertura no Excel.
 
-## 5. Requisitos Não Funcionais
-- RNF01: Interações visuais devem ocorrer com transições suaves (< 600ms).
-- RNF02: Funcionalidade de fundo deve persistir entre recargas da página.
-- RNF03: Layout responsivo para desktop e mobile.
+## 5. Comandos MCP Discord Chat
+### 5.1 Criar card
+`/nova Título | descrição | prioridade | prazo(YYYY-MM-DD) | responsável`
 
-## 6. Critérios de Aceite
-- CA01: Ao criar tarefa, card aparece com animação perceptível.
-- CA02: Ao mover tarefa, coluna alvo destaca e card recebe feedback visual.
-- CA03: Cor de fundo escolhida é aplicada imediatamente e persiste no reload.
-- CA04: Imagem local selecionada é aplicada como fundo e persiste no reload.
-- CA05: Botão de restauração retorna para fundo padrão.
-- CA06: Botão Google Calendar (v1) abre nova aba com template de evento.
+### 5.2 Editar card
+`/editar T-001 | titulo=...;descricao=...;prioridade=...;prazo=...;responsavel=...;status=todo|doing|review|done`
 
-## 7. Riscos
-- Armazenamento de imagem em base64 pode crescer no `localStorage`.
-- Bloqueio de pop-up pode impedir abertura automática de nova aba do calendar.
+## 6. Requisitos Não Funcionais
+- RNF01: Exportação deve gerar arquivo em UTF-8 para evitar problemas de acentuação no Excel.
+- RNF02: Parser de comando deve retornar mensagens amigáveis em caso de erro.
+- RNF03: Interface deve continuar responsiva mesmo com novas seções MCP.
+
+## 7. Critérios de Aceite
+- CA01: Botão Discord cria resumo correto e abre Discord.
+- CA02: Comando `/nova` cria card visível no board.
+- CA03: Comando `/editar` altera card existente pelo ID.
+- CA04: Exportação gera arquivo `.csv` que abre no Excel com colunas corretas.
+- CA05: ID único (`T-001`, `T-002`...) aparece no card e no export.
+
+## 8. Riscos
+- Falha no clipboard em navegadores sem permissão: fallback deve exibir mensagem para cópia manual.
+- Arquivo CSV depende da configuração regional do Excel (uso de `;` como separador ajuda no padrão PT-BR).
