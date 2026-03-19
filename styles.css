@@ -98,10 +98,12 @@ main {
   flex-wrap: nowrap;
   align-items: flex-start;
   gap: 1rem;
+  width: 100%;
+  max-width: calc((280px * 3) + 2rem);
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: .35rem;
-  min-width: 100%;
+  margin-inline: 0;
   scrollbar-gutter: stable;
 }
 
