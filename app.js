@@ -426,19 +426,39 @@ function buildGoogleCalendarUrl(task) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
 }
 
-function syncGoogleCalendarV1() {
-  const candidate = tasks
-    .filter((task) => task.dueDate)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+function openExternalUrl(url) {
+  const popup = window.open(url, '_blank', 'noopener,noreferrer');
+  if (popup) return true;
 
-  if (!candidate) {
-    setStatus('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada para criar evento.');
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function syncGoogleCalendarV1() {
+  if (!tasks.length) {
+    setStatus('[MCP CALENDAR] Não há tarefas para sincronizar.');
     return;
   }
 
+  const candidateWithDueDate = tasks
+    .filter((task) => task.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  const candidate = candidateWithDueDate || [...tasks].sort((a, b) => a.ref.localeCompare(b.ref))[0];
+
+  if (!candidateWithDueDate) {
+    setStatus('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada. Evento será criado para hoje.');
+  }
+
   const url = buildGoogleCalendarUrl(candidate);
-  window.open(url, '_blank', 'noopener,noreferrer');
-  setStatus(`[MCP CALENDAR] Evento preparado para ${candidate.ref} (${candidate.dueDate}).`);
+  openExternalUrl(url);
+  setStatus(`[MCP CALENDAR] Evento preparado para ${candidate.ref} (${candidate.dueDate || 'hoje'}).`);
 }
 
 function summarizeDescription(description) {
