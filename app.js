@@ -31,8 +31,6 @@ const taskForm = document.getElementById('taskForm');
 const cancelDialog = document.getElementById('cancelDialog');
 const statusMessage = document.getElementById('statusMessage');
 const dialogTitle = document.getElementById('dialogTitle');
-const searchInput = document.getElementById('searchInput');
-const priorityFilter = document.getElementById('priorityFilter');
 const discordReportBtn = document.getElementById('discordReportBtn');
 const calendarSyncBtn = document.getElementById('calendarSyncBtn');
 const excelExportBtn = document.getElementById('excelExportBtn');
@@ -109,6 +107,7 @@ function setStatus(message) {
   statusMessage.textContent = message;
 }
 
+// Sanitização básica para exibir texto no HTML com segurança.
 function escapeHtml(text) {
   return String(text)
     .replaceAll('&', '&amp;')
@@ -116,18 +115,6 @@ function escapeHtml(text) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-}
-
-function filteredTasks() {
-  const q = searchInput.value.trim().toLowerCase();
-  const pf = priorityFilter.value;
-
-  return tasks.filter((task) => {
-    const text = `${task.ref} ${task.title} ${task.description} ${task.owner}`.toLowerCase();
-    const byText = !q || text.includes(q);
-    const byPriority = !pf || task.priority === pf;
-    return byText && byPriority;
-  });
 }
 
 function getStatusLabel(statusId) {
@@ -204,8 +191,9 @@ function moveTask(draggedTaskId, targetColumnId, targetTaskId = null) {
 function render() {
   board.innerHTML = '';
   refreshStatusOptions();
-  const visible = filteredTasks();
+  const visible = tasks;
 
+  // Renderização principal do board: cria colunas dinâmicas e conecta drag-and-drop.
   columns.forEach((column) => {
     const colEl = document.createElement('section');
     colEl.className = 'column';
@@ -376,6 +364,7 @@ function removeColumn(columnId) {
 }
 
 function openCreateDialog() {
+  // Abertura do modal de cadastro: útil para mostrar CRUD básico na apresentação.
   if (!columns.length) {
     setStatus('Crie pelo menos um quadro antes de cadastrar tarefas.');
     return;
@@ -441,6 +430,7 @@ function openExternalUrl(url) {
 }
 
 function syncGoogleCalendarV1() {
+  // MVP de integração: gera link de evento no Google Calendar para a tarefa mais urgente.
   if (!tasks.length) {
     setStatus('[MCP CALENDAR] Não há tarefas para sincronizar.');
     return;
@@ -572,6 +562,7 @@ newColumnName.addEventListener('keydown', (event) => {
 taskForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
+  // Coleta dados do formulário para criar/editar tarefa com estrutura simples e didática.
   const formData = new FormData(taskForm);
   const payload = {
     title: formData.get('title')?.toString().trim(),
@@ -635,9 +626,6 @@ document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
   setStatus('GUI alterada: modo compacto alternado.');
 });
-
-searchInput.addEventListener('input', render);
-priorityFilter.addEventListener('change', render);
 
 boardColorPicker.addEventListener('input', (event) => {
   const color = event.target.value;

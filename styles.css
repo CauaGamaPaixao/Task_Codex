@@ -1,4 +1,5 @@
 :root {
+  /* Paleta e tokens visuais do projeto: facilita padronização para quem está iniciando no front-end. */
   --bg: #f5f7fb;
   --text: #1f2937;
   --card: #ffffff;
@@ -18,6 +19,7 @@ body {
 }
 
 .topbar {
+  /* Cabeçalho direto e limpo para focar na demo funcional do Kanban. */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -62,6 +64,7 @@ main {
 }
 
 .board-area {
+  /* Área principal do produto: permite personalização visual sem impactar estrutura dos dados. */
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1rem;
@@ -94,6 +97,7 @@ main {
 }
 
 .board {
+  /* Layout horizontal com scroll: estratégia para escalar o número de quadros sem quebrar a UI. */
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-start;
@@ -108,6 +112,7 @@ main {
 }
 
 .column {
+  /* Coluna fixa para manter previsibilidade de layout e facilitar drag-and-drop entre quadros. */
   background: rgba(238, 243, 251, .88);
   border-radius: 12px;
   padding: .8rem;
@@ -154,6 +159,7 @@ main {
 }
 
 .card {
+  /* Card como unidade de trabalho da sprint: simples, legível e fácil de evoluir. */
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -207,6 +213,7 @@ main {
 .card-actions button { padding: .35rem .55rem; font-size: .78rem; }
 
 .panel {
+  /* Painel lateral para integrações MCP e feedback de status durante a apresentação. */
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
