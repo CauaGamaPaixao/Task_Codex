@@ -107,6 +107,10 @@ main {
   transition: background-color .2s ease, transform .2s ease;
 }
 
+.column[draggable="true"] .column-header h3 {
+  cursor: grab;
+}
+
 .column-header {
   display: flex;
   justify-content: space-between;
@@ -129,6 +133,15 @@ main {
   transform: scale(1.01);
 }
 
+.column.column-drag-over {
+  outline: 2px dashed #2563eb;
+  outline-offset: 2px;
+}
+
+.column.column-dragging {
+  opacity: .78;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -147,6 +160,11 @@ main {
 .card.dragging {
   opacity: .6;
   transform: rotate(1deg) scale(1.02);
+}
+
+.card.card-drop-target {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .24);
 }
 
 .card.is-new {

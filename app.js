@@ -19,6 +19,7 @@ let columns = loadColumns();
 let tasks = hydrateTasks(loadTasks());
 let createdTaskId = null;
 let movedTaskId = null;
+let movedColumnId = null;
 
 const board = document.getElementById('board');
 const boardArea = document.getElementById('boardArea');
@@ -153,6 +154,53 @@ function ensureValidTaskStatuses() {
   persistTasks();
 }
 
+function moveColumn(draggedId, targetId) {
+  if (!draggedId || !targetId || draggedId === targetId) return;
+  const fromIndex = columns.findIndex((column) => column.id === draggedId);
+  const toIndex = columns.findIndex((column) => column.id === targetId);
+  if (fromIndex < 0 || toIndex < 0) return;
+
+  const [dragged] = columns.splice(fromIndex, 1);
+  columns.splice(toIndex, 0, dragged);
+  movedColumnId = dragged.id;
+  persistColumns();
+  setStatus(`Quadro "${dragged.name}" movido.`);
+  render();
+}
+
+function moveTask(draggedTaskId, targetColumnId, targetTaskId = null) {
+  const fromIndex = tasks.findIndex((task) => task.id === draggedTaskId);
+  if (fromIndex < 0 || !targetColumnId) return;
+
+  const [draggedTask] = tasks.splice(fromIndex, 1);
+  draggedTask.status = targetColumnId;
+
+  if (targetTaskId) {
+    const insertIndex = tasks.findIndex((task) => task.id === targetTaskId);
+    if (insertIndex >= 0) {
+      tasks.splice(insertIndex, 0, draggedTask);
+    } else {
+      tasks.push(draggedTask);
+    }
+  } else {
+    const lastInColumnIndex = tasks.reduce(
+      (acc, task, index) => (task.status === targetColumnId ? index : acc),
+      -1
+    );
+
+    if (lastInColumnIndex >= 0) {
+      tasks.splice(lastInColumnIndex + 1, 0, draggedTask);
+    } else {
+      tasks.push(draggedTask);
+    }
+  }
+
+  movedTaskId = draggedTask.id;
+  persistTasks();
+  setStatus(`Movida: "${draggedTask.title}" para ${getStatusLabel(targetColumnId)}.`);
+  render();
+}
+
 function render() {
   board.innerHTML = '';
   refreshStatusOptions();
@@ -162,6 +210,7 @@ function render() {
     const colEl = document.createElement('section');
     colEl.className = 'column';
     colEl.dataset.status = column.id;
+    colEl.draggable = true;
     colEl.innerHTML = `
       <div class="column-header">
         <h3>${escapeHtml(column.name)}</h3>
@@ -195,6 +244,7 @@ function render() {
       card.addEventListener('dragstart', (event) => {
         card.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
+        event.stopPropagation();
         event.dataTransfer.setData('text/task-id', task.id);
       });
 
@@ -202,40 +252,86 @@ function render() {
         card.classList.remove('dragging');
       });
 
+      card.addEventListener('dragover', (event) => {
+        if (!event.dataTransfer.types.includes('text/task-id')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        card.classList.add('card-drop-target');
+      });
+
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('card-drop-target');
+      });
+
+      card.addEventListener('drop', (event) => {
+        if (!event.dataTransfer.types.includes('text/task-id')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        card.classList.remove('card-drop-target');
+        const draggedTaskId = event.dataTransfer.getData('text/task-id');
+        moveTask(draggedTaskId, column.id, task.id);
+      });
+
       colEl.appendChild(card);
+    });
+
+    colEl.addEventListener('dragstart', (event) => {
+      if (!event.dataTransfer.types.includes('text/task-id')) {
+        colEl.classList.add('column-dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/column-id', column.id);
+      }
+    });
+
+    colEl.addEventListener('dragend', () => {
+      colEl.classList.remove('column-dragging');
     });
 
     colEl.addEventListener('dragover', (event) => {
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      colEl.classList.add('drag-over');
+      if (event.dataTransfer.types.includes('text/task-id')) {
+        event.dataTransfer.dropEffect = 'move';
+        colEl.classList.add('drag-over');
+      }
+      if (event.dataTransfer.types.includes('text/column-id')) {
+        colEl.classList.add('column-drag-over');
+      }
     });
 
-    colEl.addEventListener('dragleave', () => {
+    colEl.addEventListener('dragleave', (event) => {
+      if (event.target.classList?.contains('card')) {
+        event.target.classList.remove('card-drop-target');
+      }
       colEl.classList.remove('drag-over');
+      colEl.classList.remove('column-drag-over');
     });
 
     colEl.addEventListener('drop', (event) => {
       event.preventDefault();
       colEl.classList.remove('drag-over');
-      const taskId = event.dataTransfer.getData('text/task-id');
-      const target = tasks.find((item) => item.id === taskId);
-      if (target && target.status !== column.id) {
-        target.status = column.id;
-        movedTaskId = target.id;
-        setStatus(`Movida: "${target.title}" para ${column.name}.`);
-        persistTasks();
-        render();
+      colEl.classList.remove('column-drag-over');
+
+      if (event.dataTransfer.types.includes('text/task-id')) {
+        const draggedTaskId = event.dataTransfer.getData('text/task-id');
+        moveTask(draggedTaskId, column.id);
+      }
+
+      if (event.dataTransfer.types.includes('text/column-id')) {
+        const draggedColumnId = event.dataTransfer.getData('text/column-id');
+        if (draggedColumnId && draggedColumnId !== column.id) {
+          moveColumn(draggedColumnId, column.id);
+        }
       }
     });
 
     board.appendChild(colEl);
   });
 
-  if (createdTaskId || movedTaskId) {
+  if (createdTaskId || movedTaskId || movedColumnId) {
     window.setTimeout(() => {
       createdTaskId = null;
       movedTaskId = null;
+      movedColumnId = null;
       render();
     }, 550);
   }
