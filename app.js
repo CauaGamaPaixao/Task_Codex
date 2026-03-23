@@ -2,6 +2,8 @@ const STORAGE_KEY = 'kanban-tasks-v5';
 const COLUMN_STORAGE_KEY = 'kanban-columns-v2';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
+// Configure aqui sua chave da OpenAI para o Gerador de Tasks.
+const OPENAI_API_KEY = '';
 
 const starterColumns = [
   { id: crypto.randomUUID(), name: 'Backlog' },
@@ -38,7 +40,6 @@ const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
 const taskStatusSelect = document.getElementById('taskStatusSelect');
-const openAiApiKeyInput = document.getElementById('openAiApiKey');
 const taskGeneratorPrompt = document.getElementById('taskGeneratorPrompt');
 const generateTasksBtn = document.getElementById('generateTasksBtn');
 const taskGeneratorChat = document.getElementById('taskGeneratorChat');
@@ -611,11 +612,16 @@ function appendGeneratedTasksToBoard(generatedTasks) {
 }
 
 async function generateTasksWithChatGPT() {
-  const apiKey = openAiApiKeyInput.value.trim();
+  const apiKey = OPENAI_API_KEY.trim();
   const prompt = taskGeneratorPrompt.value.trim();
 
-  if (!apiKey || !prompt) {
-    setStatus('Informe API Key e descrição do projeto para gerar tasks.');
+  if (!prompt) {
+    setStatus('Descreva sua entrega para gerar tasks.');
+    return;
+  }
+
+  if (!apiKey) {
+    setStatus('Configure a constante OPENAI_API_KEY no arquivo app.js para usar o Gerador de Tasks.');
     return;
   }
 
