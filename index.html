@@ -10,30 +10,17 @@
   <header class="topbar">
     <div>
       <h1>Kanban Task</h1>
-      <p>Projeto da 3ª semana de estágio (ADS)</p>
     </div>
     <div class="actions">
-      <button id="densityToggle" type="button">Modificar GUI: Modo Compacto</button>
+      <button id="densityToggle" type="button">Modo Compacto</button>
       <button id="addTaskBtn" type="button">+ Nova tarefa</button>
     </div>
   </header>
 
   <main>
     <section id="boardArea" class="board-area">
+      <!-- Bloco de controles principais do board: nesta fase do estágio, foca em criar e organizar quadros -->
       <div class="toolbar" aria-label="Controles do board">
-        <label>
-          Buscar
-          <input id="searchInput" type="search" placeholder="Título, descrição, responsável ou ID..." />
-        </label>
-        <label>
-          Prioridade
-          <select id="priorityFilter">
-            <option value="">Todas</option>
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
-          </select>
-        </label>
         <div class="column-creator">
           <label>
             Novo quadro/coluna
@@ -42,9 +29,11 @@
           <button id="addColumnBtn" type="button">Adicionar quadro</button>
         </div>
       </div>
+      <!-- Área viva do Kanban: os quadros e cards são renderizados via JavaScript -->
       <section class="board" id="board" aria-live="polite"></section>
     </section>
 
+    <!-- Painel lateral com integrações e mensagens para demonstrar ganhos práticos do projeto -->
     <aside class="panel">
       <h2>Integrações MCP</h2>
       <p>MCPs ativos para evolução do projeto:</p>
@@ -60,10 +49,18 @@
         <button type="button" id="excelExportBtn">Exportar backlog (Excel)</button>
       </div>
 
-      <h3>Gestão dos Quadros</h3>
-      <p class="helper-text">
-        Agora os quadros não são mais fixos. Você pode criar novas colunas e remover as que não fizerem mais sentido para o fluxo do projeto.
-      </p>
+      <!-- Gerador de tasks com experiência em formato de chat para a apresentação -->
+      <h3>Gerador de Tasks</h3>
+      <div class="task-generator">
+        <div id="taskGeneratorChat" class="task-generator-chat" aria-live="polite">
+          <p class="chat-bubble assistant">Descreva o que você vai entregar no projeto e eu vou sugerir tasks e subtasks automaticamente.</p>
+        </div>
+        <label>
+          O que você vai entregar?
+          <textarea id="taskGeneratorPrompt" rows="4" placeholder="Ex.: MVP de um app de chamados com login, dashboard e exportação em CSV."></textarea>
+        </label>
+        <button type="button" id="generateTasksBtn">Gerar tasks com Gemini</button>
+      </div>
 
       <h3>Personalização do Fundo</h3>
       <div class="bg-controls">

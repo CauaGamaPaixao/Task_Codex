@@ -2,6 +2,8 @@ const STORAGE_KEY = 'kanban-tasks-v5';
 const COLUMN_STORAGE_KEY = 'kanban-columns-v2';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
+// Configure aqui sua chave da API Gemini para o Gerador de Tasks.
+const GEMINI_API_KEY = '';
 
 const starterColumns = [
   { id: crypto.randomUUID(), name: 'Backlog' },
@@ -19,6 +21,7 @@ let columns = loadColumns();
 let tasks = hydrateTasks(loadTasks());
 let createdTaskId = null;
 let movedTaskId = null;
+let movedColumnId = null;
 
 const board = document.getElementById('board');
 const boardArea = document.getElementById('boardArea');
@@ -30,8 +33,6 @@ const taskForm = document.getElementById('taskForm');
 const cancelDialog = document.getElementById('cancelDialog');
 const statusMessage = document.getElementById('statusMessage');
 const dialogTitle = document.getElementById('dialogTitle');
-const searchInput = document.getElementById('searchInput');
-const priorityFilter = document.getElementById('priorityFilter');
 const discordReportBtn = document.getElementById('discordReportBtn');
 const calendarSyncBtn = document.getElementById('calendarSyncBtn');
 const excelExportBtn = document.getElementById('excelExportBtn');
@@ -39,6 +40,9 @@ const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
 const taskStatusSelect = document.getElementById('taskStatusSelect');
+const taskGeneratorPrompt = document.getElementById('taskGeneratorPrompt');
+const generateTasksBtn = document.getElementById('generateTasksBtn');
+const taskGeneratorChat = document.getElementById('taskGeneratorChat');
 
 function loadColumns() {
   try {
@@ -108,6 +112,7 @@ function setStatus(message) {
   statusMessage.textContent = message;
 }
 
+// Sanitização básica para exibir texto no HTML com segurança.
 function escapeHtml(text) {
   return String(text)
     .replaceAll('&', '&amp;')
@@ -115,18 +120,6 @@ function escapeHtml(text) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-}
-
-function filteredTasks() {
-  const q = searchInput.value.trim().toLowerCase();
-  const pf = priorityFilter.value;
-
-  return tasks.filter((task) => {
-    const text = `${task.ref} ${task.title} ${task.description} ${task.owner}`.toLowerCase();
-    const byText = !q || text.includes(q);
-    const byPriority = !pf || task.priority === pf;
-    return byText && byPriority;
-  });
 }
 
 function getStatusLabel(statusId) {
@@ -153,15 +146,64 @@ function ensureValidTaskStatuses() {
   persistTasks();
 }
 
+function moveColumn(draggedId, targetId) {
+  if (!draggedId || !targetId || draggedId === targetId) return;
+  const fromIndex = columns.findIndex((column) => column.id === draggedId);
+  const toIndex = columns.findIndex((column) => column.id === targetId);
+  if (fromIndex < 0 || toIndex < 0) return;
+
+  const [dragged] = columns.splice(fromIndex, 1);
+  columns.splice(toIndex, 0, dragged);
+  movedColumnId = dragged.id;
+  persistColumns();
+  setStatus(`Quadro "${dragged.name}" movido.`);
+  render();
+}
+
+function moveTask(draggedTaskId, targetColumnId, targetTaskId = null) {
+  const fromIndex = tasks.findIndex((task) => task.id === draggedTaskId);
+  if (fromIndex < 0 || !targetColumnId) return;
+
+  const [draggedTask] = tasks.splice(fromIndex, 1);
+  draggedTask.status = targetColumnId;
+
+  if (targetTaskId) {
+    const insertIndex = tasks.findIndex((task) => task.id === targetTaskId);
+    if (insertIndex >= 0) {
+      tasks.splice(insertIndex, 0, draggedTask);
+    } else {
+      tasks.push(draggedTask);
+    }
+  } else {
+    const lastInColumnIndex = tasks.reduce(
+      (acc, task, index) => (task.status === targetColumnId ? index : acc),
+      -1
+    );
+
+    if (lastInColumnIndex >= 0) {
+      tasks.splice(lastInColumnIndex + 1, 0, draggedTask);
+    } else {
+      tasks.push(draggedTask);
+    }
+  }
+
+  movedTaskId = draggedTask.id;
+  persistTasks();
+  setStatus(`Movida: "${draggedTask.title}" para ${getStatusLabel(targetColumnId)}.`);
+  render();
+}
+
 function render() {
   board.innerHTML = '';
   refreshStatusOptions();
-  const visible = filteredTasks();
+  const visible = tasks;
 
+  // Renderização principal do board: cria colunas dinâmicas e conecta drag-and-drop.
   columns.forEach((column) => {
     const colEl = document.createElement('section');
     colEl.className = 'column';
     colEl.dataset.status = column.id;
+    colEl.draggable = true;
     colEl.innerHTML = `
       <div class="column-header">
         <h3>${escapeHtml(column.name)}</h3>
@@ -195,6 +237,7 @@ function render() {
       card.addEventListener('dragstart', (event) => {
         card.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
+        event.stopPropagation();
         event.dataTransfer.setData('text/task-id', task.id);
       });
 
@@ -202,40 +245,86 @@ function render() {
         card.classList.remove('dragging');
       });
 
+      card.addEventListener('dragover', (event) => {
+        if (!event.dataTransfer.types.includes('text/task-id')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        card.classList.add('card-drop-target');
+      });
+
+      card.addEventListener('dragleave', () => {
+        card.classList.remove('card-drop-target');
+      });
+
+      card.addEventListener('drop', (event) => {
+        if (!event.dataTransfer.types.includes('text/task-id')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        card.classList.remove('card-drop-target');
+        const draggedTaskId = event.dataTransfer.getData('text/task-id');
+        moveTask(draggedTaskId, column.id, task.id);
+      });
+
       colEl.appendChild(card);
+    });
+
+    colEl.addEventListener('dragstart', (event) => {
+      if (!event.dataTransfer.types.includes('text/task-id')) {
+        colEl.classList.add('column-dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/column-id', column.id);
+      }
+    });
+
+    colEl.addEventListener('dragend', () => {
+      colEl.classList.remove('column-dragging');
     });
 
     colEl.addEventListener('dragover', (event) => {
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      colEl.classList.add('drag-over');
+      if (event.dataTransfer.types.includes('text/task-id')) {
+        event.dataTransfer.dropEffect = 'move';
+        colEl.classList.add('drag-over');
+      }
+      if (event.dataTransfer.types.includes('text/column-id')) {
+        colEl.classList.add('column-drag-over');
+      }
     });
 
-    colEl.addEventListener('dragleave', () => {
+    colEl.addEventListener('dragleave', (event) => {
+      if (event.target.classList?.contains('card')) {
+        event.target.classList.remove('card-drop-target');
+      }
       colEl.classList.remove('drag-over');
+      colEl.classList.remove('column-drag-over');
     });
 
     colEl.addEventListener('drop', (event) => {
       event.preventDefault();
       colEl.classList.remove('drag-over');
-      const taskId = event.dataTransfer.getData('text/task-id');
-      const target = tasks.find((item) => item.id === taskId);
-      if (target && target.status !== column.id) {
-        target.status = column.id;
-        movedTaskId = target.id;
-        setStatus(`Movida: "${target.title}" para ${column.name}.`);
-        persistTasks();
-        render();
+      colEl.classList.remove('column-drag-over');
+
+      if (event.dataTransfer.types.includes('text/task-id')) {
+        const draggedTaskId = event.dataTransfer.getData('text/task-id');
+        moveTask(draggedTaskId, column.id);
+      }
+
+      if (event.dataTransfer.types.includes('text/column-id')) {
+        const draggedColumnId = event.dataTransfer.getData('text/column-id');
+        if (draggedColumnId && draggedColumnId !== column.id) {
+          moveColumn(draggedColumnId, column.id);
+        }
       }
     });
 
     board.appendChild(colEl);
   });
 
-  if (createdTaskId || movedTaskId) {
+  if (createdTaskId || movedTaskId || movedColumnId) {
     window.setTimeout(() => {
       createdTaskId = null;
       movedTaskId = null;
+      movedColumnId = null;
       render();
     }, 550);
   }
@@ -280,6 +369,7 @@ function removeColumn(columnId) {
 }
 
 function openCreateDialog() {
+  // Abertura do modal de cadastro: útil para mostrar CRUD básico na apresentação.
   if (!columns.length) {
     setStatus('Crie pelo menos um quadro antes de cadastrar tarefas.');
     return;
@@ -330,19 +420,40 @@ function buildGoogleCalendarUrl(task) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
 }
 
-function syncGoogleCalendarV1() {
-  const candidate = tasks
-    .filter((task) => task.dueDate)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+function openExternalUrl(url) {
+  const popup = window.open(url, '_blank', 'noopener,noreferrer');
+  if (popup) return true;
 
-  if (!candidate) {
-    setStatus('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada para criar evento.');
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function syncGoogleCalendarV1() {
+  // MVP de integração: gera link de evento no Google Calendar para a tarefa mais urgente.
+  if (!tasks.length) {
+    setStatus('[MCP CALENDAR] Não há tarefas para sincronizar.');
     return;
   }
 
+  const candidateWithDueDate = tasks
+    .filter((task) => task.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  const candidate = candidateWithDueDate || [...tasks].sort((a, b) => a.ref.localeCompare(b.ref))[0];
+
+  if (!candidateWithDueDate) {
+    setStatus('[MCP CALENDAR] Nenhuma tarefa com prazo encontrada. Evento será criado para hoje.');
+  }
+
   const url = buildGoogleCalendarUrl(candidate);
-  window.open(url, '_blank', 'noopener,noreferrer');
-  setStatus(`[MCP CALENDAR] Evento preparado para ${candidate.ref} (${candidate.dueDate}).`);
+  openExternalUrl(url);
+  setStatus(`[MCP CALENDAR] Evento preparado para ${candidate.ref} (${candidate.dueDate || 'hoje'}).`);
 }
 
 function summarizeDescription(description) {
@@ -414,6 +525,193 @@ function saveBoardBackground(payload) {
   localStorage.setItem(BOARD_BG_KEY, JSON.stringify(payload));
 }
 
+function appendGeneratorMessage(role, text) {
+  const bubble = document.createElement('p');
+  bubble.className = `chat-bubble ${role}`;
+  bubble.textContent = text;
+  taskGeneratorChat.appendChild(bubble);
+  taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
+}
+
+function normalizeGeneratedTasks(content) {
+  const fallback = [];
+  let parsed;
+  const cleanedContent = String(content || '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  try {
+    parsed = JSON.parse(cleanedContent);
+  } catch {
+    return fallback;
+  }
+
+  if (!Array.isArray(parsed.tasks)) return fallback;
+
+  return parsed.tasks
+    .map((task) => ({
+      title: String(task.title || '').trim(),
+      description: String(task.description || '').trim(),
+      priority: ['Baixa', 'Média', 'Alta'].includes(task.priority) ? task.priority : 'Média',
+      subtasks: Array.isArray(task.subtasks)
+        ? task.subtasks.map((subtask) => String(subtask).trim()).filter(Boolean)
+        : []
+    }))
+    .filter((task) => task.title);
+}
+
+function buildLocalFallbackTasks(prompt) {
+  const text = prompt.toLowerCase();
+  const guessedPriority = text.includes('mvp') ? 'Alta' : 'Média';
+
+  return [
+    {
+      title: 'Levantamento de requisitos',
+      description: 'Mapear escopo, objetivo da entrega e critérios de aceitação do projeto.',
+      priority: 'Alta',
+      subtasks: ['Definir objetivo', 'Listar requisitos funcionais', 'Listar requisitos não funcionais']
+    },
+    {
+      title: 'Planejamento técnico inicial',
+      description: 'Estruturar arquitetura, fluxo de telas e divisão por etapas de implementação.',
+      priority: guessedPriority,
+      subtasks: ['Desenhar fluxo', 'Definir stack', 'Criar backlog inicial']
+    },
+    {
+      title: 'Implementação do MVP',
+      description: `Construir a primeira versão funcional com base na entrega descrita: "${prompt.slice(0, 140)}".`,
+      priority: 'Alta',
+      subtasks: ['Criar funcionalidades principais', 'Testar fluxo fim a fim', 'Ajustar bugs críticos']
+    },
+    {
+      title: 'Validação e entrega',
+      description: 'Validar com usuário/gestor, consolidar evidências e preparar apresentação final.',
+      priority: 'Média',
+      subtasks: ['Executar checklist de validação', 'Gerar relatório rápido', 'Preparar demo']
+    }
+  ];
+}
+
+function appendGeneratedTasksToBoard(generatedTasks) {
+  const statusId = columns[0]?.id;
+  generatedTasks.forEach((task) => {
+    const subtasksText = task.subtasks.length
+      ? `\n\nSubtasks:\n- ${task.subtasks.join('\n- ')}`
+      : '';
+
+    tasks.push({
+      id: crypto.randomUUID(),
+      ref: nextTaskRef(),
+      title: task.title,
+      description: `${task.description}${subtasksText}`.trim(),
+      owner: 'Equipe',
+      dueDate: '',
+      priority: task.priority,
+      status: statusId
+    });
+  });
+
+  persistTasks();
+  render();
+}
+
+async function generateTasksWithGemini() {
+  const apiKey = GEMINI_API_KEY.trim();
+  const prompt = taskGeneratorPrompt.value.trim();
+
+  if (!prompt) {
+    setStatus('Descreva sua entrega para gerar tasks.');
+    return;
+  }
+
+  if (!apiKey) {
+    setStatus('Configure a constante GEMINI_API_KEY no arquivo app.js para usar o Gerador de Tasks.');
+    return;
+  }
+
+  appendGeneratorMessage('user', prompt);
+  generateTasksBtn.disabled = true;
+  generateTasksBtn.textContent = 'Gerando...';
+
+  const systemPrompt = [
+    'Você é um gerente de projeto júnior ajudando um estagiário ADS do 2º semestre.',
+    'Gere tasks objetivas e práticas para implementar o projeto descrito.',
+    'Retorne SOMENTE JSON válido no formato:',
+    '{"tasks":[{"title":"...","description":"...","priority":"Baixa|Média|Alta","subtasks":["..."]}]}'
+  ].join(' ');
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\nProjeto descrito pelo usuário: ${prompt}` }]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      let apiErrorCode = '';
+      try {
+        const errorPayload = await response.json();
+        apiErrorCode = errorPayload?.error?.status || errorPayload?.error?.code || '';
+      } catch {
+        apiErrorCode = '';
+      }
+
+      if (response.status === 429) {
+        const fallbackTasks = buildLocalFallbackTasks(prompt);
+        appendGeneratedTasksToBoard(fallbackTasks);
+        appendGeneratorMessage(
+          'assistant',
+          'A API Gemini respondeu com limite de uso (429). Ativei o modo de contingência e gerei tasks localmente.'
+        );
+        setStatus('[Gerador de Tasks] Limite da Gemini atingido (429). Tasks geradas em modo de contingência.');
+        taskGeneratorPrompt.value = '';
+        return;
+      }
+
+      appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key da Gemini e tente novamente.');
+      setStatus(`[Gerador de Tasks] Erro na API Gemini (${response.status}${apiErrorCode ? `: ${apiErrorCode}` : ''}).`);
+      return;
+    }
+
+    const payload = await response.json();
+    const outputText = payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const generatedTasks = normalizeGeneratedTasks(outputText);
+
+    if (!generatedTasks.length) {
+      appendGeneratorMessage('assistant', 'Recebi uma resposta, mas não no formato esperado. Tente descrever com mais detalhes.');
+      setStatus('[Gerador de Tasks] Resposta sem tasks válidas.');
+      return;
+    }
+
+    appendGeneratedTasksToBoard(generatedTasks);
+    appendGeneratorMessage('assistant', `Gerei ${generatedTasks.length} task(s) e adicionei no board.`);
+    setStatus(`[Gerador de Tasks] ${generatedTasks.length} tarefas criadas automaticamente.`);
+    taskGeneratorPrompt.value = '';
+  } catch {
+    appendGeneratorMessage('assistant', 'Falha de conexão com a API Gemini. Tente novamente em instantes.');
+    setStatus('[Gerador de Tasks] Erro de conexão ao gerar tarefas.');
+  } finally {
+    generateTasksBtn.disabled = false;
+    generateTasksBtn.textContent = 'Gerar tasks com Gemini';
+  }
+}
+
 function applyBoardBackground(payload) {
   if (!payload || payload.type === 'default') {
     boardArea.style.backgroundImage = 'none';
@@ -456,6 +754,7 @@ newColumnName.addEventListener('keydown', (event) => {
 taskForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
+  // Coleta dados do formulário para criar/editar tarefa com estrutura simples e didática.
   const formData = new FormData(taskForm);
   const payload = {
     title: formData.get('title')?.toString().trim(),
@@ -514,14 +813,12 @@ board.addEventListener('click', (event) => {
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
+generateTasksBtn.addEventListener('click', generateTasksWithGemini);
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
   setStatus('GUI alterada: modo compacto alternado.');
 });
-
-searchInput.addEventListener('input', render);
-priorityFilter.addEventListener('change', render);
 
 boardColorPicker.addEventListener('input', (event) => {
   const color = event.target.value;
