@@ -1,4 +1,4 @@
-# PRD — Kanban Task (Web)
+# PRD Kanban Task (Web)
 
 ## 1) Visão Geral do Produto
 O **Kanban Task** é uma aplicação web de gerenciamento de tarefas no modelo Kanban, semelhante ao Trello/Planner, voltada para organização visual do fluxo de trabalho de projetos.
