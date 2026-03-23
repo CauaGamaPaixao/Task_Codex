@@ -2,8 +2,8 @@ const STORAGE_KEY = 'kanban-tasks-v5';
 const COLUMN_STORAGE_KEY = 'kanban-columns-v2';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
-// Configure aqui sua chave da OpenAI para o Gerador de Tasks.
-const OPENAI_API_KEY = '';
+// Configure aqui sua chave da API Gemini para o Gerador de Tasks.
+const GEMINI_API_KEY = '';
 
 const starterColumns = [
   { id: crypto.randomUUID(), name: 'Backlog' },
@@ -536,8 +536,13 @@ function appendGeneratorMessage(role, text) {
 function normalizeGeneratedTasks(content) {
   const fallback = [];
   let parsed;
+  const cleanedContent = String(content || '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(cleanedContent);
   } catch {
     return fallback;
   }
@@ -611,8 +616,8 @@ function appendGeneratedTasksToBoard(generatedTasks) {
   render();
 }
 
-async function generateTasksWithChatGPT() {
-  const apiKey = OPENAI_API_KEY.trim();
+async function generateTasksWithGemini() {
+  const apiKey = GEMINI_API_KEY.trim();
   const prompt = taskGeneratorPrompt.value.trim();
 
   if (!prompt) {
@@ -621,7 +626,7 @@ async function generateTasksWithChatGPT() {
   }
 
   if (!apiKey) {
-    setStatus('Configure a constante OPENAI_API_KEY no arquivo app.js para usar o Gerador de Tasks.');
+    setStatus('Configure a constante GEMINI_API_KEY no arquivo app.js para usar o Gerador de Tasks.');
     return;
   }
 
@@ -637,26 +642,32 @@ async function generateTasksWithChatGPT() {
   ].join(' ');
 
   try {
-    const response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        input: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ]
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\nProjeto descrito pelo usuário: ${prompt}` }]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        })
+      }
+    );
 
     if (!response.ok) {
       let apiErrorCode = '';
       try {
         const errorPayload = await response.json();
-        apiErrorCode = errorPayload?.error?.code || '';
+        apiErrorCode = errorPayload?.error?.status || errorPayload?.error?.code || '';
       } catch {
         apiErrorCode = '';
       }
@@ -666,20 +677,20 @@ async function generateTasksWithChatGPT() {
         appendGeneratedTasksToBoard(fallbackTasks);
         appendGeneratorMessage(
           'assistant',
-          'A OpenAI API respondeu com limite de uso (429). Ativei o modo de contingência e gerei tasks localmente.'
+          'A API Gemini respondeu com limite de uso (429). Ativei o modo de contingência e gerei tasks localmente.'
         );
-        setStatus('[Gerador de Tasks] Limite da OpenAI atingido (429). Tasks geradas em modo de contingência.');
+        setStatus('[Gerador de Tasks] Limite da Gemini atingido (429). Tasks geradas em modo de contingência.');
         taskGeneratorPrompt.value = '';
         return;
       }
 
-      appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key e tente novamente.');
-      setStatus(`[Gerador de Tasks] Erro na API OpenAI (${response.status}${apiErrorCode ? `: ${apiErrorCode}` : ''}).`);
+      appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key da Gemini e tente novamente.');
+      setStatus(`[Gerador de Tasks] Erro na API Gemini (${response.status}${apiErrorCode ? `: ${apiErrorCode}` : ''}).`);
       return;
     }
 
     const payload = await response.json();
-    const outputText = payload.output_text || '';
+    const outputText = payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const generatedTasks = normalizeGeneratedTasks(outputText);
 
     if (!generatedTasks.length) {
@@ -693,11 +704,11 @@ async function generateTasksWithChatGPT() {
     setStatus(`[Gerador de Tasks] ${generatedTasks.length} tarefas criadas automaticamente.`);
     taskGeneratorPrompt.value = '';
   } catch {
-    appendGeneratorMessage('assistant', 'Falha de conexão com a OpenAI API. Tente novamente em instantes.');
+    appendGeneratorMessage('assistant', 'Falha de conexão com a API Gemini. Tente novamente em instantes.');
     setStatus('[Gerador de Tasks] Erro de conexão ao gerar tarefas.');
   } finally {
     generateTasksBtn.disabled = false;
-    generateTasksBtn.textContent = 'Gerar tasks com ChatGPT';
+    generateTasksBtn.textContent = 'Gerar tasks com Gemini';
   }
 }
 
@@ -802,7 +813,7 @@ board.addEventListener('click', (event) => {
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
-generateTasksBtn.addEventListener('click', generateTasksWithChatGPT);
+generateTasksBtn.addEventListener('click', generateTasksWithGemini);
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
