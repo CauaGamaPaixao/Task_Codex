@@ -555,6 +555,61 @@ function normalizeGeneratedTasks(content) {
     .filter((task) => task.title);
 }
 
+function buildLocalFallbackTasks(prompt) {
+  const text = prompt.toLowerCase();
+  const guessedPriority = text.includes('mvp') ? 'Alta' : 'Média';
+
+  return [
+    {
+      title: 'Levantamento de requisitos',
+      description: 'Mapear escopo, objetivo da entrega e critérios de aceitação do projeto.',
+      priority: 'Alta',
+      subtasks: ['Definir objetivo', 'Listar requisitos funcionais', 'Listar requisitos não funcionais']
+    },
+    {
+      title: 'Planejamento técnico inicial',
+      description: 'Estruturar arquitetura, fluxo de telas e divisão por etapas de implementação.',
+      priority: guessedPriority,
+      subtasks: ['Desenhar fluxo', 'Definir stack', 'Criar backlog inicial']
+    },
+    {
+      title: 'Implementação do MVP',
+      description: `Construir a primeira versão funcional com base na entrega descrita: "${prompt.slice(0, 140)}".`,
+      priority: 'Alta',
+      subtasks: ['Criar funcionalidades principais', 'Testar fluxo fim a fim', 'Ajustar bugs críticos']
+    },
+    {
+      title: 'Validação e entrega',
+      description: 'Validar com usuário/gestor, consolidar evidências e preparar apresentação final.',
+      priority: 'Média',
+      subtasks: ['Executar checklist de validação', 'Gerar relatório rápido', 'Preparar demo']
+    }
+  ];
+}
+
+function appendGeneratedTasksToBoard(generatedTasks) {
+  const statusId = columns[0]?.id;
+  generatedTasks.forEach((task) => {
+    const subtasksText = task.subtasks.length
+      ? `\n\nSubtasks:\n- ${task.subtasks.join('\n- ')}`
+      : '';
+
+    tasks.push({
+      id: crypto.randomUUID(),
+      ref: nextTaskRef(),
+      title: task.title,
+      description: `${task.description}${subtasksText}`.trim(),
+      owner: 'Equipe',
+      dueDate: '',
+      priority: task.priority,
+      status: statusId
+    });
+  });
+
+  persistTasks();
+  render();
+}
+
 async function generateTasksWithChatGPT() {
   const apiKey = openAiApiKeyInput.value.trim();
   const prompt = taskGeneratorPrompt.value.trim();
@@ -592,8 +647,28 @@ async function generateTasksWithChatGPT() {
     });
 
     if (!response.ok) {
+      let apiErrorCode = '';
+      try {
+        const errorPayload = await response.json();
+        apiErrorCode = errorPayload?.error?.code || '';
+      } catch {
+        apiErrorCode = '';
+      }
+
+      if (response.status === 429) {
+        const fallbackTasks = buildLocalFallbackTasks(prompt);
+        appendGeneratedTasksToBoard(fallbackTasks);
+        appendGeneratorMessage(
+          'assistant',
+          'A OpenAI API respondeu com limite de uso (429). Ativei o modo de contingência e gerei tasks localmente.'
+        );
+        setStatus('[Gerador de Tasks] Limite da OpenAI atingido (429). Tasks geradas em modo de contingência.');
+        taskGeneratorPrompt.value = '';
+        return;
+      }
+
       appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key e tente novamente.');
-      setStatus(`[Gerador de Tasks] Erro na API OpenAI (${response.status}).`);
+      setStatus(`[Gerador de Tasks] Erro na API OpenAI (${response.status}${apiErrorCode ? `: ${apiErrorCode}` : ''}).`);
       return;
     }
 
@@ -607,26 +682,7 @@ async function generateTasksWithChatGPT() {
       return;
     }
 
-    const statusId = columns[0]?.id;
-    generatedTasks.forEach((task) => {
-      const subtasksText = task.subtasks.length
-        ? `\n\nSubtasks:\n- ${task.subtasks.join('\n- ')}`
-        : '';
-
-      tasks.push({
-        id: crypto.randomUUID(),
-        ref: nextTaskRef(),
-        title: task.title,
-        description: `${task.description}${subtasksText}`.trim(),
-        owner: 'Equipe',
-        dueDate: '',
-        priority: task.priority,
-        status: statusId
-      });
-    });
-
-    persistTasks();
-    render();
+    appendGeneratedTasksToBoard(generatedTasks);
     appendGeneratorMessage('assistant', `Gerei ${generatedTasks.length} task(s) e adicionei no board.`);
     setStatus(`[Gerador de Tasks] ${generatedTasks.length} tarefas criadas automaticamente.`);
     taskGeneratorPrompt.value = '';
