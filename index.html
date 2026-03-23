@@ -49,10 +49,22 @@
         <button type="button" id="excelExportBtn">Exportar backlog (Excel)</button>
       </div>
 
-      <h3>Gestão dos Quadros</h3>
-      <p class="helper-text">
-        Agora os quadros não são mais fixos. Você pode criar novas colunas e remover as que não fizerem mais sentido para o fluxo do projeto.
-      </p>
+      <!-- Gerador de tasks com experiência em formato de chat para a apresentação -->
+      <h3>Gerador de Tasks</h3>
+      <div class="task-generator">
+        <label>
+          OpenAI API Key
+          <input id="openAiApiKey" type="password" placeholder="sk-..." autocomplete="off" />
+        </label>
+        <div id="taskGeneratorChat" class="task-generator-chat" aria-live="polite">
+          <p class="chat-bubble assistant">Descreva o que você vai entregar no projeto e eu vou sugerir tasks e subtasks automaticamente.</p>
+        </div>
+        <label>
+          O que você vai entregar?
+          <textarea id="taskGeneratorPrompt" rows="4" placeholder="Ex.: MVP de um app de chamados com login, dashboard e exportação em CSV."></textarea>
+        </label>
+        <button type="button" id="generateTasksBtn">Gerar tasks com ChatGPT</button>
+      </div>
 
       <h3>Personalização do Fundo</h3>
       <div class="bg-controls">

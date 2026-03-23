@@ -38,6 +38,10 @@ const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
 const taskStatusSelect = document.getElementById('taskStatusSelect');
+const openAiApiKeyInput = document.getElementById('openAiApiKey');
+const taskGeneratorPrompt = document.getElementById('taskGeneratorPrompt');
+const generateTasksBtn = document.getElementById('generateTasksBtn');
+const taskGeneratorChat = document.getElementById('taskGeneratorChat');
 
 function loadColumns() {
   try {
@@ -520,6 +524,121 @@ function saveBoardBackground(payload) {
   localStorage.setItem(BOARD_BG_KEY, JSON.stringify(payload));
 }
 
+function appendGeneratorMessage(role, text) {
+  const bubble = document.createElement('p');
+  bubble.className = `chat-bubble ${role}`;
+  bubble.textContent = text;
+  taskGeneratorChat.appendChild(bubble);
+  taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
+}
+
+function normalizeGeneratedTasks(content) {
+  const fallback = [];
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return fallback;
+  }
+
+  if (!Array.isArray(parsed.tasks)) return fallback;
+
+  return parsed.tasks
+    .map((task) => ({
+      title: String(task.title || '').trim(),
+      description: String(task.description || '').trim(),
+      priority: ['Baixa', 'Média', 'Alta'].includes(task.priority) ? task.priority : 'Média',
+      subtasks: Array.isArray(task.subtasks)
+        ? task.subtasks.map((subtask) => String(subtask).trim()).filter(Boolean)
+        : []
+    }))
+    .filter((task) => task.title);
+}
+
+async function generateTasksWithChatGPT() {
+  const apiKey = openAiApiKeyInput.value.trim();
+  const prompt = taskGeneratorPrompt.value.trim();
+
+  if (!apiKey || !prompt) {
+    setStatus('Informe API Key e descrição do projeto para gerar tasks.');
+    return;
+  }
+
+  appendGeneratorMessage('user', prompt);
+  generateTasksBtn.disabled = true;
+  generateTasksBtn.textContent = 'Gerando...';
+
+  const systemPrompt = [
+    'Você é um gerente de projeto júnior ajudando um estagiário ADS do 2º semestre.',
+    'Gere tasks objetivas e práticas para implementar o projeto descrito.',
+    'Retorne SOMENTE JSON válido no formato:',
+    '{"tasks":[{"title":"...","description":"...","priority":"Baixa|Média|Alta","subtasks":["..."]}]}'
+  ].join(' ');
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        input: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key e tente novamente.');
+      setStatus(`[Gerador de Tasks] Erro na API OpenAI (${response.status}).`);
+      return;
+    }
+
+    const payload = await response.json();
+    const outputText = payload.output_text || '';
+    const generatedTasks = normalizeGeneratedTasks(outputText);
+
+    if (!generatedTasks.length) {
+      appendGeneratorMessage('assistant', 'Recebi uma resposta, mas não no formato esperado. Tente descrever com mais detalhes.');
+      setStatus('[Gerador de Tasks] Resposta sem tasks válidas.');
+      return;
+    }
+
+    const statusId = columns[0]?.id;
+    generatedTasks.forEach((task) => {
+      const subtasksText = task.subtasks.length
+        ? `\n\nSubtasks:\n- ${task.subtasks.join('\n- ')}`
+        : '';
+
+      tasks.push({
+        id: crypto.randomUUID(),
+        ref: nextTaskRef(),
+        title: task.title,
+        description: `${task.description}${subtasksText}`.trim(),
+        owner: 'Equipe',
+        dueDate: '',
+        priority: task.priority,
+        status: statusId
+      });
+    });
+
+    persistTasks();
+    render();
+    appendGeneratorMessage('assistant', `Gerei ${generatedTasks.length} task(s) e adicionei no board.`);
+    setStatus(`[Gerador de Tasks] ${generatedTasks.length} tarefas criadas automaticamente.`);
+    taskGeneratorPrompt.value = '';
+  } catch {
+    appendGeneratorMessage('assistant', 'Falha de conexão com a OpenAI API. Tente novamente em instantes.');
+    setStatus('[Gerador de Tasks] Erro de conexão ao gerar tarefas.');
+  } finally {
+    generateTasksBtn.disabled = false;
+    generateTasksBtn.textContent = 'Gerar tasks com ChatGPT';
+  }
+}
+
 function applyBoardBackground(payload) {
   if (!payload || payload.type === 'default') {
     boardArea.style.backgroundImage = 'none';
@@ -621,6 +740,7 @@ board.addEventListener('click', (event) => {
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
+generateTasksBtn.addEventListener('click', generateTasksWithChatGPT);
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');

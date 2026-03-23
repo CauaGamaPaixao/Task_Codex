@@ -226,6 +226,39 @@ main {
   gap: .5rem;
 }
 
+.task-generator {
+  display: grid;
+  gap: .6rem;
+  margin-bottom: .9rem;
+}
+
+.task-generator-chat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .7rem;
+  background: #f8fafc;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.chat-bubble {
+  margin: 0 0 .5rem;
+  padding: .55rem .65rem;
+  border-radius: 10px;
+  font-size: .88rem;
+  line-height: 1.35;
+}
+
+.chat-bubble.user {
+  background: #dbeafe;
+  margin-left: 1rem;
+}
+
+.chat-bubble.assistant {
+  background: #e5e7eb;
+  margin-right: 1rem;
+}
+
 .bg-controls label { display: grid; gap: .25rem; font-size: .9rem; }
 
 .helper-text {
