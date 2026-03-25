@@ -1,6 +1,9 @@
-const { generateSubtasks } = require('../services/aiService');
+const {
+  generateSubtasks,
+  classifyPriority
+} = require('../services/taskIntelligenceService');
 
-function handleGenerateSubtasks(req, res) {
+function handleTaskIntelligence(req, res) {
   const taskTitle = typeof req.body?.taskTitle === 'string' ? req.body.taskTitle.trim() : '';
 
   if (!taskTitle) {
@@ -9,19 +12,20 @@ function handleGenerateSubtasks(req, res) {
     return;
   }
 
-  console.log('Generating mock subtasks for:', taskTitle);
+  console.log('Task Intelligence executed:', taskTitle);
 
   const subtasks = generateSubtasks(taskTitle);
+  const priority = classifyPriority(taskTitle);
 
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(
     JSON.stringify({
-      taskTitle,
-      subtasks
+      subtasks,
+      priority
     })
   );
 }
 
 module.exports = {
-  handleGenerateSubtasks
+  handleTaskIntelligence
 };

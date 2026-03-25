@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { handleGenerateSubtasks } = require('./controllers/aiController');
+const { handleTaskIntelligence } = require('./controllers/taskIntelligenceController');
 
 const PORT = process.env.PORT || 8000;
 const rootDir = __dirname;
@@ -57,7 +57,7 @@ function parseBody(req, callback) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url === '/ai/generate-subtasks') {
+  if (req.method === 'POST' && req.url === '/task/intelligence') {
     parseBody(req, (body) => {
       if (body === null) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -66,7 +66,7 @@ const server = http.createServer((req, res) => {
       }
 
       req.body = body;
-      handleGenerateSubtasks(req, res);
+      handleTaskIntelligence(req, res);
     });
     return;
   }

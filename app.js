@@ -531,7 +531,7 @@ function appendGeneratorMessage(role, text) {
   taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
 }
 
-function appendGeneratedSubtasksToBoard(parentTitle, subtasks) {
+function appendGeneratedSubtasksToBoard(parentTitle, subtasks, priority) {
   const statusId = columns[0]?.id;
   subtasks.forEach((subtask, index) => {
     tasks.push({
@@ -541,7 +541,7 @@ function appendGeneratedSubtasksToBoard(parentTitle, subtasks) {
       description: `Subtask ${index + 1} gerada para: ${parentTitle}`,
       owner: 'Equipe',
       dueDate: '',
-      priority: 'Média',
+      priority,
       status: statusId
     });
   });
@@ -563,7 +563,7 @@ async function generateTasksWithMock() {
   generateTasksBtn.textContent = 'Gerando...';
 
   try {
-    const response = await fetch('/ai/generate-subtasks', {
+    const response = await fetch('/task/intelligence', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ taskTitle: prompt })
@@ -577,6 +577,7 @@ async function generateTasksWithMock() {
 
     const payload = await response.json();
     const subtasks = Array.isArray(payload?.subtasks) ? payload.subtasks.filter(Boolean) : [];
+    const priority = ['Baixa', 'Média', 'Alta'].includes(payload?.priority) ? payload.priority : 'Baixa';
 
     if (!subtasks.length) {
       appendGeneratorMessage('assistant', 'Recebi uma resposta sem subtasks válidas. Tente outro título.');
@@ -584,12 +585,12 @@ async function generateTasksWithMock() {
       return;
     }
 
-    appendGeneratedSubtasksToBoard(prompt, subtasks);
-    appendGeneratorMessage('assistant', `Gerei ${subtasks.length} subtask(s) com Skill mock local e adicionei no board.`);
-    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente.`);
+    appendGeneratedSubtasksToBoard(prompt, subtasks, priority);
+    appendGeneratorMessage('assistant', `Task Intelligence (Mock): ${subtasks.length} subtasks criadas com prioridade ${priority}.`);
+    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente (prioridade ${priority}).`);
     taskGeneratorPrompt.value = '';
   } catch {
-    appendGeneratorMessage('assistant', 'Falha de conexão com o endpoint local /ai/generate-subtasks.');
+    appendGeneratorMessage('assistant', 'Falha de conexão com o endpoint local /task/intelligence.');
     setStatus('[Gerador de Tasks] Erro de conexão ao gerar subtasks.');
   } finally {
     generateTasksBtn.disabled = false;

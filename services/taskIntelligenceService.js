@@ -5,7 +5,7 @@ function generateSubtasks(taskTitle) {
     return [
       'Criar endpoint de autenticação',
       'Validar credenciais',
-      'Implementar geração de token',
+      'Gerar token JWT',
       'Criar middleware de autorização'
     ];
   }
@@ -36,6 +36,25 @@ function generateSubtasks(taskTitle) {
   ];
 }
 
+function classifyPriority(taskTitle) {
+  const normalizedTitle = String(taskTitle || '').trim().toLowerCase();
+
+  if (
+    normalizedTitle.includes('erro') ||
+    normalizedTitle.includes('falha') ||
+    normalizedTitle.includes('crítico')
+  ) {
+    return 'Alta';
+  }
+
+  if (normalizedTitle.includes('melhoria') || normalizedTitle.includes('ajuste')) {
+    return 'Média';
+  }
+
+  return 'Baixa';
+}
+
 module.exports = {
-  generateSubtasks
+  generateSubtasks,
+  classifyPriority
 };
