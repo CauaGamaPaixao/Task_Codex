@@ -255,12 +255,6 @@ main {
 
 .bg-controls label { display: grid; gap: .25rem; font-size: .9rem; }
 
-.helper-text {
-  margin-bottom: .7rem;
-  font-size: .9rem;
-  color: #4b5563;
-}
-
 .status-message {
   margin-top: .9rem;
   padding: .7rem .8rem;

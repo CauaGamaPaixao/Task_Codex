@@ -15,7 +15,6 @@ Depois acesse: `http://localhost:8000`
 - Board Kanban com colunas dinâmicas e drag-and-drop.
 - Criação, edição e exclusão de tarefas.
 - Criação e remoção de quadros/colunas pelo usuário.
-- Filtro por texto e prioridade.
 - Persistência local de tarefas, colunas e preferências visuais.
 - Modificação de GUI: **Modo Compacto**.
 - Modificação de GUI adicional: fundo do quadro por cor fixa ou imagem local.

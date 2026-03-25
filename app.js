@@ -87,11 +87,7 @@ function hydrateTasks(rawTasks) {
     }
 
     if (!Array.isArray(nextTask.checklist)) {
-      nextTask.checklist = buildChecklistFromTitle(nextTask.title).map((text) => ({
-        id: crypto.randomUUID(),
-        text,
-        done: false
-      }));
+      nextTask.checklist = createChecklistItems(nextTask.title);
     }
 
     return nextTask;
@@ -112,6 +108,7 @@ function persistTasks() {
 }
 
 function buildChecklistFromTitle(taskTitle) {
+  // Regras simples para gerar checklist automático sem depender de IA.
   const normalizedTitle = String(taskTitle || '').trim().toLowerCase();
 
   if (normalizedTitle.includes('login')) {
@@ -147,6 +144,14 @@ function buildChecklistFromTitle(taskTitle) {
     'Realizar testes',
     'Documentar entrega'
   ];
+}
+
+function createChecklistItems(taskTitle) {
+  return buildChecklistFromTitle(taskTitle).map((text) => ({
+    id: crypto.randomUUID(),
+    text,
+    done: false
+  }));
 }
 
 function setStatus(message) {
@@ -661,11 +666,7 @@ taskForm.addEventListener('submit', (event) => {
     const newTask = {
       id: crypto.randomUUID(),
       ref: nextTaskRef(),
-      checklist: buildChecklistFromTitle(payload.title).map((text) => ({
-        id: crypto.randomUUID(),
-        text,
-        done: false
-      })),
+      checklist: createChecklistItems(payload.title),
       ...payload
     };
     tasks.push(newTask);
