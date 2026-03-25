@@ -3,12 +3,10 @@
 Projeto de Kanban inspirado em Trello/Slack para a task da 3ª semana de estágio.
 
 ## Como executar
-Como é um app estático, basta abrir o `index.html` no navegador.
-
-Opcionalmente, rode um servidor local:
+Rode o servidor local Node.js (necessário para o endpoint mock de subtasks):
 
 ```bash
-python -m http.server 8000
+node server.js
 ```
 
 Depois acesse: `http://localhost:8000`
@@ -24,3 +22,4 @@ Depois acesse: `http://localhost:8000`
 - MCP Discord: gera resumo da task e abre Discord para envio.
 - MCP Google Calendar (v1): abre evento pré-preenchido da próxima tarefa com prazo.
 - MCP Excel Backlog: exporta backlog em CSV compatível com Excel.
+- Skill mock local de subtasks: endpoint `POST /ai/generate-subtasks` com lógica por palavra-chave.

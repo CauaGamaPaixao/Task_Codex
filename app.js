@@ -2,8 +2,6 @@ const STORAGE_KEY = 'kanban-tasks-v5';
 const COLUMN_STORAGE_KEY = 'kanban-columns-v2';
 const BOARD_BG_KEY = 'kanban-board-bg-v1';
 const REF_COUNTER_KEY = 'kanban-ref-counter-v1';
-// Configure aqui sua chave da API Gemini para o Gerador de Tasks.
-const GEMINI_API_KEY = '';
 
 const starterColumns = [
   { id: crypto.randomUUID(), name: 'Backlog' },
@@ -533,81 +531,17 @@ function appendGeneratorMessage(role, text) {
   taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
 }
 
-function normalizeGeneratedTasks(content) {
-  const fallback = [];
-  let parsed;
-  const cleanedContent = String(content || '')
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-  try {
-    parsed = JSON.parse(cleanedContent);
-  } catch {
-    return fallback;
-  }
-
-  if (!Array.isArray(parsed.tasks)) return fallback;
-
-  return parsed.tasks
-    .map((task) => ({
-      title: String(task.title || '').trim(),
-      description: String(task.description || '').trim(),
-      priority: ['Baixa', 'Média', 'Alta'].includes(task.priority) ? task.priority : 'Média',
-      subtasks: Array.isArray(task.subtasks)
-        ? task.subtasks.map((subtask) => String(subtask).trim()).filter(Boolean)
-        : []
-    }))
-    .filter((task) => task.title);
-}
-
-function buildLocalFallbackTasks(prompt) {
-  const text = prompt.toLowerCase();
-  const guessedPriority = text.includes('mvp') ? 'Alta' : 'Média';
-
-  return [
-    {
-      title: 'Levantamento de requisitos',
-      description: 'Mapear escopo, objetivo da entrega e critérios de aceitação do projeto.',
-      priority: 'Alta',
-      subtasks: ['Definir objetivo', 'Listar requisitos funcionais', 'Listar requisitos não funcionais']
-    },
-    {
-      title: 'Planejamento técnico inicial',
-      description: 'Estruturar arquitetura, fluxo de telas e divisão por etapas de implementação.',
-      priority: guessedPriority,
-      subtasks: ['Desenhar fluxo', 'Definir stack', 'Criar backlog inicial']
-    },
-    {
-      title: 'Implementação do MVP',
-      description: `Construir a primeira versão funcional com base na entrega descrita: "${prompt.slice(0, 140)}".`,
-      priority: 'Alta',
-      subtasks: ['Criar funcionalidades principais', 'Testar fluxo fim a fim', 'Ajustar bugs críticos']
-    },
-    {
-      title: 'Validação e entrega',
-      description: 'Validar com usuário/gestor, consolidar evidências e preparar apresentação final.',
-      priority: 'Média',
-      subtasks: ['Executar checklist de validação', 'Gerar relatório rápido', 'Preparar demo']
-    }
-  ];
-}
-
-function appendGeneratedTasksToBoard(generatedTasks) {
+function appendGeneratedSubtasksToBoard(parentTitle, subtasks) {
   const statusId = columns[0]?.id;
-  generatedTasks.forEach((task) => {
-    const subtasksText = task.subtasks.length
-      ? `\n\nSubtasks:\n- ${task.subtasks.join('\n- ')}`
-      : '';
-
+  subtasks.forEach((subtask, index) => {
     tasks.push({
       id: crypto.randomUUID(),
       ref: nextTaskRef(),
-      title: task.title,
-      description: `${task.description}${subtasksText}`.trim(),
+      title: subtask,
+      description: `Subtask ${index + 1} gerada para: ${parentTitle}`,
       owner: 'Equipe',
       dueDate: '',
-      priority: task.priority,
+      priority: 'Média',
       status: statusId
     });
   });
@@ -616,8 +550,7 @@ function appendGeneratedTasksToBoard(generatedTasks) {
   render();
 }
 
-async function generateTasksWithGemini() {
-  const apiKey = GEMINI_API_KEY.trim();
+async function generateTasksWithMock() {
   const prompt = taskGeneratorPrompt.value.trim();
 
   if (!prompt) {
@@ -625,90 +558,42 @@ async function generateTasksWithGemini() {
     return;
   }
 
-  if (!apiKey) {
-    setStatus('Configure a constante GEMINI_API_KEY no arquivo app.js para usar o Gerador de Tasks.');
-    return;
-  }
-
   appendGeneratorMessage('user', prompt);
   generateTasksBtn.disabled = true;
   generateTasksBtn.textContent = 'Gerando...';
 
-  const systemPrompt = [
-    'Você é um gerente de projeto júnior ajudando um estagiário ADS do 2º semestre.',
-    'Gere tasks objetivas e práticas para implementar o projeto descrito.',
-    'Retorne SOMENTE JSON válido no formato:',
-    '{"tasks":[{"title":"...","description":"...","priority":"Baixa|Média|Alta","subtasks":["..."]}]}'
-  ].join(' ');
-
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemPrompt}\n\nProjeto descrito pelo usuário: ${prompt}` }]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json'
-          }
-        })
-      }
-    );
+    const response = await fetch('/ai/generate-subtasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskTitle: prompt })
+    });
 
     if (!response.ok) {
-      let apiErrorCode = '';
-      try {
-        const errorPayload = await response.json();
-        apiErrorCode = errorPayload?.error?.status || errorPayload?.error?.code || '';
-      } catch {
-        apiErrorCode = '';
-      }
-
-      if (response.status === 429) {
-        const fallbackTasks = buildLocalFallbackTasks(prompt);
-        appendGeneratedTasksToBoard(fallbackTasks);
-        appendGeneratorMessage(
-          'assistant',
-          'A API Gemini respondeu com limite de uso (429). Ativei o modo de contingência e gerei tasks localmente.'
-        );
-        setStatus('[Gerador de Tasks] Limite da Gemini atingido (429). Tasks geradas em modo de contingência.');
-        taskGeneratorPrompt.value = '';
-        return;
-      }
-
-      appendGeneratorMessage('assistant', 'Não consegui gerar tasks agora. Verifique sua API Key da Gemini e tente novamente.');
-      setStatus(`[Gerador de Tasks] Erro na API Gemini (${response.status}${apiErrorCode ? `: ${apiErrorCode}` : ''}).`);
+      appendGeneratorMessage('assistant', 'Não consegui gerar subtasks agora. Verifique o endpoint local e tente novamente.');
+      setStatus(`[Gerador de Tasks] Erro no endpoint local (${response.status}).`);
       return;
     }
 
     const payload = await response.json();
-    const outputText = payload?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const generatedTasks = normalizeGeneratedTasks(outputText);
+    const subtasks = Array.isArray(payload?.subtasks) ? payload.subtasks.filter(Boolean) : [];
 
-    if (!generatedTasks.length) {
-      appendGeneratorMessage('assistant', 'Recebi uma resposta, mas não no formato esperado. Tente descrever com mais detalhes.');
-      setStatus('[Gerador de Tasks] Resposta sem tasks válidas.');
+    if (!subtasks.length) {
+      appendGeneratorMessage('assistant', 'Recebi uma resposta sem subtasks válidas. Tente outro título.');
+      setStatus('[Gerador de Tasks] Resposta sem subtasks válidas.');
       return;
     }
 
-    appendGeneratedTasksToBoard(generatedTasks);
-    appendGeneratorMessage('assistant', `Gerei ${generatedTasks.length} task(s) e adicionei no board.`);
-    setStatus(`[Gerador de Tasks] ${generatedTasks.length} tarefas criadas automaticamente.`);
+    appendGeneratedSubtasksToBoard(prompt, subtasks);
+    appendGeneratorMessage('assistant', `Gerei ${subtasks.length} subtask(s) com Skill mock local e adicionei no board.`);
+    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente.`);
     taskGeneratorPrompt.value = '';
   } catch {
-    appendGeneratorMessage('assistant', 'Falha de conexão com a API Gemini. Tente novamente em instantes.');
-    setStatus('[Gerador de Tasks] Erro de conexão ao gerar tarefas.');
+    appendGeneratorMessage('assistant', 'Falha de conexão com o endpoint local /ai/generate-subtasks.');
+    setStatus('[Gerador de Tasks] Erro de conexão ao gerar subtasks.');
   } finally {
     generateTasksBtn.disabled = false;
-    generateTasksBtn.textContent = 'Gerar tasks com Gemini';
+    generateTasksBtn.textContent = 'Gerar subtasks (Mock)';
   }
 }
 
@@ -813,7 +698,7 @@ board.addEventListener('click', (event) => {
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
-generateTasksBtn.addEventListener('click', generateTasksWithGemini);
+generateTasksBtn.addEventListener('click', generateTasksWithMock);
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
