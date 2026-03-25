@@ -1,7 +1,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { handleTaskIntelligence } = require('./controllers/taskIntelligenceController');
 
 const PORT = process.env.PORT || 8000;
 const rootDir = __dirname;
@@ -37,40 +36,7 @@ function serveStatic(req, res) {
   });
 }
 
-function parseBody(req, callback) {
-  let body = '';
-  req.on('data', (chunk) => {
-    body += chunk;
-  });
-  req.on('end', () => {
-    if (!body) {
-      callback({});
-      return;
-    }
-
-    try {
-      callback(JSON.parse(body));
-    } catch {
-      callback(null);
-    }
-  });
-}
-
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url === '/task/intelligence') {
-    parseBody(req, (body) => {
-      if (body === null) {
-        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ error: 'JSON inválido.' }));
-        return;
-      }
-
-      req.body = body;
-      handleTaskIntelligence(req, res);
-    });
-    return;
-  }
-
   if (req.method === 'GET') {
     serveStatic(req, res);
     return;

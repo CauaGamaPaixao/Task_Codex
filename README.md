@@ -22,4 +22,3 @@ Depois acesse: `http://localhost:8000`
 - MCP Discord: gera resumo da task e abre Discord para envio.
 - MCP Google Calendar (v1): abre evento pré-preenchido da próxima tarefa com prazo.
 - MCP Excel Backlog: exporta backlog em CSV compatível com Excel.
-- Skill **Task Intelligence (Mock)**: endpoint `POST /task/intelligence` com geração automática de subtasks por regras.

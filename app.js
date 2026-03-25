@@ -38,9 +38,6 @@ const boardColorPicker = document.getElementById('boardColorPicker');
 const boardImagePicker = document.getElementById('boardImagePicker');
 const clearBackgroundBtn = document.getElementById('clearBackground');
 const taskStatusSelect = document.getElementById('taskStatusSelect');
-const taskGeneratorPrompt = document.getElementById('taskGeneratorPrompt');
-const generateTasksBtn = document.getElementById('generateTasksBtn');
-const taskGeneratorChat = document.getElementById('taskGeneratorChat');
 
 function loadColumns() {
   try {
@@ -593,84 +590,6 @@ function saveBoardBackground(payload) {
   localStorage.setItem(BOARD_BG_KEY, JSON.stringify(payload));
 }
 
-function appendGeneratorMessage(role, text) {
-  const bubble = document.createElement('p');
-  bubble.className = `chat-bubble ${role}`;
-  bubble.textContent = text;
-  taskGeneratorChat.appendChild(bubble);
-  taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
-}
-
-function appendGeneratedSubtasksToBoard(parentTitle, subtasks) {
-  const statusId = columns[0]?.id;
-  subtasks.forEach((subtask, index) => {
-    tasks.push({
-      id: crypto.randomUUID(),
-      ref: nextTaskRef(),
-      title: subtask,
-      description: `Subtask ${index + 1} gerada para: ${parentTitle}`,
-      owner: 'Equipe',
-      dueDate: '',
-      priority: 'Média',
-      checklist: buildChecklistFromTitle(subtask).map((text) => ({
-        id: crypto.randomUUID(),
-        text,
-        done: false
-      })),
-      status: statusId
-    });
-  });
-
-  persistTasks();
-  render();
-}
-
-async function generateTasksWithMock() {
-  const prompt = taskGeneratorPrompt.value.trim();
-
-  if (!prompt) {
-    setStatus('Descreva sua entrega para gerar tasks.');
-    return;
-  }
-
-  appendGeneratorMessage('user', prompt);
-  generateTasksBtn.disabled = true;
-  generateTasksBtn.textContent = 'Gerando...';
-
-  try {
-    const response = await fetch('/task/intelligence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskTitle: prompt })
-    });
-
-    if (!response.ok) {
-      appendGeneratorMessage('assistant', 'Não consegui gerar subtasks agora. Verifique o endpoint local e tente novamente.');
-      setStatus(`[Gerador de Tasks] Erro no endpoint local (${response.status}).`);
-      return;
-    }
-
-    const payload = await response.json();
-    const subtasks = Array.isArray(payload?.subtasks) ? payload.subtasks.filter(Boolean) : [];
-    if (!subtasks.length) {
-      appendGeneratorMessage('assistant', 'Recebi uma resposta sem subtasks válidas. Tente outro título.');
-      setStatus('[Gerador de Tasks] Resposta sem subtasks válidas.');
-      return;
-    }
-
-    appendGeneratedSubtasksToBoard(prompt, subtasks);
-    appendGeneratorMessage('assistant', `Task Intelligence (Mock): ${subtasks.length} subtasks criadas com checklist automático.`);
-    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente.`);
-    taskGeneratorPrompt.value = '';
-  } catch {
-    appendGeneratorMessage('assistant', 'Falha de conexão com o endpoint local /task/intelligence.');
-    setStatus('[Gerador de Tasks] Erro de conexão ao gerar subtasks.');
-  } finally {
-    generateTasksBtn.disabled = false;
-    generateTasksBtn.textContent = 'Gerar subtasks (Mock)';
-  }
-}
-
 function applyBoardBackground(payload) {
   if (!payload || payload.type === 'default') {
     boardArea.style.backgroundImage = 'none';
@@ -792,7 +711,6 @@ board.addEventListener('change', (event) => {
 discordReportBtn.addEventListener('click', sendDiscordReport);
 calendarSyncBtn.addEventListener('click', syncGoogleCalendarV1);
 excelExportBtn.addEventListener('click', exportBacklogToExcelCsv);
-generateTasksBtn.addEventListener('click', generateTasksWithMock);
 
 document.getElementById('densityToggle').addEventListener('click', () => {
   document.body.classList.toggle('compact');
