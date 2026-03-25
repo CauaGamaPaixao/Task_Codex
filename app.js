@@ -89,6 +89,14 @@ function hydrateTasks(rawTasks) {
       nextTask.status = legacyMap[nextTask.status] || columns[0]?.id;
     }
 
+    if (!Array.isArray(nextTask.checklist)) {
+      nextTask.checklist = buildChecklistFromTitle(nextTask.title).map((text) => ({
+        id: crypto.randomUUID(),
+        text,
+        done: false
+      }));
+    }
+
     return nextTask;
   });
 
@@ -104,6 +112,44 @@ function nextTaskRef() {
 
 function persistTasks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+
+function buildChecklistFromTitle(taskTitle) {
+  const normalizedTitle = String(taskTitle || '').trim().toLowerCase();
+
+  if (normalizedTitle.includes('login')) {
+    return [
+      'Mapear regras de autenticação',
+      'Implementar tela/formulário de login',
+      'Validar mensagens de erro',
+      'Testar fluxo de acesso'
+    ];
+  }
+
+  if (normalizedTitle.includes('bug')) {
+    return [
+      'Reproduzir bug em ambiente local',
+      'Identificar causa raiz',
+      'Aplicar correção',
+      'Validar regressão'
+    ];
+  }
+
+  if (normalizedTitle.includes('api')) {
+    return [
+      'Definir payloads de entrada/saída',
+      'Implementar endpoint',
+      'Tratar validações e erros',
+      'Testar requisições no client'
+    ];
+  }
+
+  return [
+    'Entender o escopo da tarefa',
+    'Implementar etapa principal',
+    'Realizar testes',
+    'Documentar entrega'
+  ];
 }
 
 function setStatus(message) {
@@ -220,12 +266,36 @@ function render() {
 
       const due = task.dueDate ? ` | Prazo: ${task.dueDate}` : '';
       const owner = task.owner ? ` | Resp.: ${task.owner}` : '';
+      const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+      const doneCount = checklist.filter((item) => item.done).length;
+      const checklistHtml = checklist.length
+        ? `
+          <div class="card-checklist">
+            <small>Checklist (${doneCount}/${checklist.length})</small>
+            <ul>
+              ${checklist
+                .map(
+                  (item) => `
+                    <li>
+                      <label>
+                        <input type="checkbox" data-checklist-task-id="${task.id}" data-checklist-item-id="${item.id}" ${item.done ? 'checked' : ''} />
+                        <span>${escapeHtml(item.text)}</span>
+                      </label>
+                    </li>
+                  `
+                )
+                .join('')}
+            </ul>
+          </div>
+        `
+        : '';
 
       card.innerHTML = `
         <span class="card-id">${escapeHtml(task.ref)}</span>
         <strong>${escapeHtml(task.title)}</strong>
         <p>${escapeHtml(task.description || 'Sem descrição')}</p>
         <small>Prioridade: ${task.priority}${owner}${due}</small>
+        ${checklistHtml}
         <div class="card-actions">
           <button class="ghost" data-action="edit" data-id="${task.id}" type="button">Editar</button>
           <button class="danger" data-action="delete" data-id="${task.id}" type="button">Excluir</button>
@@ -531,7 +601,7 @@ function appendGeneratorMessage(role, text) {
   taskGeneratorChat.scrollTop = taskGeneratorChat.scrollHeight;
 }
 
-function appendGeneratedSubtasksToBoard(parentTitle, subtasks, priority) {
+function appendGeneratedSubtasksToBoard(parentTitle, subtasks) {
   const statusId = columns[0]?.id;
   subtasks.forEach((subtask, index) => {
     tasks.push({
@@ -541,7 +611,12 @@ function appendGeneratedSubtasksToBoard(parentTitle, subtasks, priority) {
       description: `Subtask ${index + 1} gerada para: ${parentTitle}`,
       owner: 'Equipe',
       dueDate: '',
-      priority,
+      priority: 'Média',
+      checklist: buildChecklistFromTitle(subtask).map((text) => ({
+        id: crypto.randomUUID(),
+        text,
+        done: false
+      })),
       status: statusId
     });
   });
@@ -577,17 +652,15 @@ async function generateTasksWithMock() {
 
     const payload = await response.json();
     const subtasks = Array.isArray(payload?.subtasks) ? payload.subtasks.filter(Boolean) : [];
-    const priority = ['Baixa', 'Média', 'Alta'].includes(payload?.priority) ? payload.priority : 'Baixa';
-
     if (!subtasks.length) {
       appendGeneratorMessage('assistant', 'Recebi uma resposta sem subtasks válidas. Tente outro título.');
       setStatus('[Gerador de Tasks] Resposta sem subtasks válidas.');
       return;
     }
 
-    appendGeneratedSubtasksToBoard(prompt, subtasks, priority);
-    appendGeneratorMessage('assistant', `Task Intelligence (Mock): ${subtasks.length} subtasks criadas com prioridade ${priority}.`);
-    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente (prioridade ${priority}).`);
+    appendGeneratedSubtasksToBoard(prompt, subtasks);
+    appendGeneratorMessage('assistant', `Task Intelligence (Mock): ${subtasks.length} subtasks criadas com checklist automático.`);
+    setStatus(`[Gerador de Tasks] ${subtasks.length} subtasks criadas automaticamente.`);
     taskGeneratorPrompt.value = '';
   } catch {
     appendGeneratorMessage('assistant', 'Falha de conexão com o endpoint local /task/intelligence.');
@@ -669,6 +742,11 @@ taskForm.addEventListener('submit', (event) => {
     const newTask = {
       id: crypto.randomUUID(),
       ref: nextTaskRef(),
+      checklist: buildChecklistFromTitle(payload.title).map((text) => ({
+        id: crypto.randomUUID(),
+        text,
+        done: false
+      })),
       ...payload
     };
     tasks.push(newTask);
@@ -694,6 +772,21 @@ board.addEventListener('click', (event) => {
   if (removeColumnButton) {
     removeColumn(removeColumnButton.dataset.columnId);
   }
+});
+
+board.addEventListener('change', (event) => {
+  const checkbox = event.target.closest('input[data-checklist-task-id][data-checklist-item-id]');
+  if (!checkbox) return;
+
+  const task = tasks.find((item) => item.id === checkbox.dataset.checklistTaskId);
+  if (!task || !Array.isArray(task.checklist)) return;
+
+  const checklistItem = task.checklist.find((item) => item.id === checkbox.dataset.checklistItemId);
+  if (!checklistItem) return;
+
+  checklistItem.done = checkbox.checked;
+  persistTasks();
+  render();
 });
 
 discordReportBtn.addEventListener('click', sendDiscordReport);

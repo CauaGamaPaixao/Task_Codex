@@ -36,25 +36,6 @@ function generateSubtasks(taskTitle) {
   ];
 }
 
-function classifyPriority(taskTitle) {
-  const normalizedTitle = String(taskTitle || '').trim().toLowerCase();
-
-  if (
-    normalizedTitle.includes('erro') ||
-    normalizedTitle.includes('falha') ||
-    normalizedTitle.includes('crítico')
-  ) {
-    return 'Alta';
-  }
-
-  if (normalizedTitle.includes('melhoria') || normalizedTitle.includes('ajuste')) {
-    return 'Média';
-  }
-
-  return 'Baixa';
-}
-
 module.exports = {
-  generateSubtasks,
-  classifyPriority
+  generateSubtasks
 };

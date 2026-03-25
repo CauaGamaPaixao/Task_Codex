@@ -1,6 +1,5 @@
 const {
-  generateSubtasks,
-  classifyPriority
+  generateSubtasks
 } = require('../services/taskIntelligenceService');
 
 function handleTaskIntelligence(req, res) {
@@ -15,13 +14,11 @@ function handleTaskIntelligence(req, res) {
   console.log('Task Intelligence executed:', taskTitle);
 
   const subtasks = generateSubtasks(taskTitle);
-  const priority = classifyPriority(taskTitle);
 
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(
     JSON.stringify({
-      subtasks,
-      priority
+      subtasks
     })
   );
 }
