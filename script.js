@@ -113,7 +113,14 @@ function getCalendarUrl(task) {
 }
 
 async function shareToTeams(task) {
-  const summary = `New Task: ${task.title} | Priority: ${task.priority}`;
+  const priorityMap = { High: 'Alta', Medium: 'Média', Low: 'Baixa' };
+  const summary = [
+    '🚀 Nova Task',
+    `📌 Nome: ${task.title}`,
+    `⚡ Prioridade: ${priorityMap[task.priority] || task.priority}`,
+    `📝 Descrição: ${task.description || 'Sem descrição'}`,
+  ].join('\n');
+
   try {
     await navigator.clipboard.writeText(summary);
   } catch (error) {
