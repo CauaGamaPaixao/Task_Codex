@@ -1,0 +1,152 @@
+:root {
+  --bg: #f3f5f8;
+  --text: #1c2028;
+  --panel: #ffffff;
+  --border: #d5dbe6;
+  --muted: #667085;
+}
+
+body[data-theme='dark'] {
+  --bg: #10131a;
+  --text: #e8edf6;
+  --panel: #1b2230;
+  --border: #2f3b52;
+  --muted: #a5b1c7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-form-section,
+.column {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.task-form {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.task-form textarea {
+  grid-column: 1 / -1;
+}
+
+button,
+input,
+select,
+textarea {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0.55rem 0.7rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+.board {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.column {
+  min-height: 420px;
+}
+
+.column-empty {
+  color: var(--muted);
+}
+
+.task-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: color-mix(in oklab, var(--panel) 90%, #8da2c4 10%);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.priority-chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  color: #111;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.priority-high {
+  background: #ff8d8d;
+}
+
+.priority-medium {
+  background: #ffe08a;
+}
+
+.priority-low {
+  background: #95e3a2;
+}
+
+.checklist {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
+
+.checklist label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+@media (max-width: 900px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+}
