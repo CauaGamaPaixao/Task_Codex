@@ -1,17 +1,17 @@
 :root {
-  --bg: #f3f5f8;
-  --text: #1c2028;
-  --panel: #ffffff;
-  --border: #d5dbe6;
-  --muted: #667085;
+  --bg: #f4f6fa;
+  --text: #20242e;
+  --card: #ffffff;
+  --border: #d3dae7;
+  --muted: #697488;
 }
 
-body[data-theme='dark'] {
-  --bg: #10131a;
-  --text: #e8edf6;
-  --panel: #1b2230;
-  --border: #2f3b52;
-  --muted: #a5b1c7;
+body.dark {
+  --bg: #0f141d;
+  --text: #e7ecf4;
+  --card: #1a2330;
+  --border: #30415a;
+  --muted: #a5b1c2;
 }
 
 * {
@@ -20,55 +20,51 @@ body[data-theme='dark'] {
 
 body {
   margin: 0;
-  font-family: Inter, Segoe UI, Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-.app-shell {
+.container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
 }
 
-.top-bar {
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.topbar {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
   align-items: center;
 }
 
-.theme-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.task-form-section,
-.column {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
+.form-section {
+  margin-top: 1rem;
 }
 
 .task-form {
   display: grid;
-  gap: 0.5rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
 }
 
 .task-form textarea {
   grid-column: 1 / -1;
 }
 
-button,
 input,
+textarea,
 select,
-textarea {
-  border-radius: 8px;
+button {
   border: 1px solid var(--border);
-  background: var(--panel);
+  border-radius: 8px;
+  background: var(--card);
   color: var(--text);
   padding: 0.55rem 0.7rem;
 }
@@ -77,27 +73,32 @@ button {
   cursor: pointer;
 }
 
+.btn-primary {
+  background: #1f6feb;
+  color: #fff;
+  border-color: #1f6feb;
+}
+
+.btn-secondary {
+  background: transparent;
+}
+
 .board {
   margin-top: 1rem;
   display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .column {
   min-height: 420px;
 }
 
-.column-empty {
-  color: var(--muted);
-}
-
 .task-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 0.75rem;
-  background: color-mix(in oklab, var(--panel) 90%, #8da2c4 10%);
 }
 
 .task-header {
@@ -110,21 +111,21 @@ button {
 .priority-chip {
   border-radius: 999px;
   padding: 0.2rem 0.6rem;
-  color: #111;
+  color: #101010;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .priority-high {
-  background: #ff8d8d;
+  background: #ff9191;
 }
 
 .priority-medium {
-  background: #ffe08a;
+  background: #ffe389;
 }
 
 .priority-low {
-  background: #95e3a2;
+  background: #9ee7ab;
 }
 
 .checklist {
@@ -133,16 +134,20 @@ button {
   margin: 0.6rem 0;
 }
 
-.checklist label {
+.checklist-item {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
-.task-actions {
+.actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+
+.empty {
+  color: var(--muted);
 }
 
 @media (max-width: 900px) {

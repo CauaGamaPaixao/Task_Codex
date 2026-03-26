@@ -1,29 +1,30 @@
-# Task Manager (Kanban App)
+# Task Manager
 
-A React-based Kanban board with 3 columns (`To Do`, `Doing`, `Done`), task checklist generation, theme toggling, and simulated MCP integrations.
+A Flask + Vanilla JS Kanban app with 3 columns: **To Do**, **Doing**, **Done**.
 
 ## Features
 
-- Create tasks with title, description, priority.
-- Auto-checklist generation from task description (mock external AI skill behavior).
-- Move tasks from `To Do -> Doing -> Done`.
-- Finish tasks in `Done` to remove them.
-- Light/Dark theme toggle with `localStorage` persistence.
-- Integrations:
-  - **Add to Calendar**: Opens Google Calendar pre-filled event form.
-  - **Share to Teams**: Copies summary and opens Microsoft Teams web.
-  - **Export to Excel**: Exports backlog as CSV.
-- Local persistence for tasks via `localStorage`.
+- Create task with title, description, and priority (High/Medium/Low)
+- New tasks always start in **To Do**
+- Move workflow:
+  - **Start Task**: To Do → Doing
+  - **Complete Task**: Doing → Done
+  - **Finish Task**: removes task from Done
+- Auto checklist generation via Python keyword parser endpoint (`/api/checklist`)
+- Light/Dark mode toggle persisted in `localStorage`
+- Simulated MCP actions:
+  - Add to Calendar (Google Calendar prefilled event URL)
+  - Share to Teams (copy summary + open Teams web)
+  - Export to Excel (CSV backlog export)
+- Task persistence with `localStorage`
 
-## Run
-
-```bash
-npm install
-npm run dev
-```
-
-## Build
+## Run locally
 
 ```bash
-npm run build
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
 ```
+
+Then open `http://127.0.0.1:5000`.
