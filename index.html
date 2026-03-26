@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar panel">
+        <h1>Task Manager</h1>
+        <button id="themeToggle" type="button">Toggle Dark Mode</button>
+      </header>
+
+      <section class="panel creator">
+        <h2>Create Task</h2>
+        <form id="taskForm" class="task-form">
+          <input id="taskTitle" type="text" placeholder="Title" required />
+          <textarea id="taskDescription" rows="3" placeholder="Description"></textarea>
+          <select id="taskPriority">
+            <option value="High">High</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <button class="primary" type="submit">Add Task</button>
+          <button id="exportBtn" type="button">Export Backlog</button>
+        </form>
+      </section>
+
+      <main class="board">
+        <section class="column panel">
+          <h3>To Do</h3>
+          <div id="todoList" class="task-list"></div>
+        </section>
+        <section class="column panel">
+          <h3>Doing</h3>
+          <div id="doingList" class="task-list"></div>
+        </section>
+        <section class="column panel">
+          <h3>Done</h3>
+          <div id="doneList" class="task-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

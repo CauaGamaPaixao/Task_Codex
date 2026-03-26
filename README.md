@@ -1,30 +1,23 @@
 # Task Manager
 
-A Flask + Vanilla JS Kanban app with 3 columns: **To Do**, **Doing**, **Done**.
+Frontend-only Kanban Task Manager built with **HTML, CSS, and Vanilla JavaScript**.
 
 ## Features
 
-- Create task with title, description, and priority (High/Medium/Low)
-- New tasks always start in **To Do**
-- Move workflow:
-  - **Start Task**: To Do → Doing
-  - **Complete Task**: Doing → Done
-  - **Finish Task**: removes task from Done
-- Auto checklist generation via Python keyword parser endpoint (`/api/checklist`)
-- Light/Dark mode toggle persisted in `localStorage`
-- Simulated MCP actions:
-  - Add to Calendar (Google Calendar prefilled event URL)
-  - Share to Teams (copy summary + open Teams web)
-  - Export to Excel (CSV backlog export)
-- Task persistence with `localStorage`
+- 3 fixed columns: **To Do**, **Doing**, **Done**
+- Create tasks with title, description, and priority
+- Task flow buttons:
+  - **Start Task** (To Do → Doing)
+  - **Complete Task** (Doing → Done)
+  - **Finish Task** (remove from board)
+- Checklist generator (simulated AI logic in JavaScript)
+- Dark/Light theme toggle with localStorage persistence
+- Simulated integrations:
+  - Google Calendar prefilled link
+  - Microsoft Teams share (copy summary + open Teams)
+  - CSV export for backlog (`Export Backlog`)
+- Task persistence using localStorage
 
-## Run locally
+## Run
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
-```
-
-Then open `http://127.0.0.1:5000`.
+Open `index.html` in your browser.
